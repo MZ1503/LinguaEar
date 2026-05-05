@@ -1,31 +1,45 @@
-import { useState } from 'react';
-import { ScrollView, View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Audio } from 'expo-av';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 
 const router = useRouter();
 const apikey=process.env.EXPO_PUBLIC_OPENAI_API_KEY;
 
 export default function LinguaEar() {
-  const [status, setStatus] = useState('Tap to Listen');
+  const [status, setStatus] = useState('Speak English or German');
   const [heard, setHeard] = useState('');
   const [explanation, setExplanation] = useState('');
   const [recording, setRecording] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [translation, setTranslation] = useState('');
+  const [tone, setTone] = useState('');
+  const [grammar, setGrammar] = useState('');
+  const [quiz, setQuiz] = useState('');
+  const [words, setWords] = useState('');
+  const [showGrammar, setShowGrammar] = useState(false);
+  const [showQuiz, setShowQuiz] = useState(false);
+
+  const loadingMessages = [
+    '🎤 Heard you...',
+    '📝 Transcribing...',
+    '🧠 Analyzing grammar...',
+    '💡 Almost ready...'
+  ];
 
 
   function resetApp() {
     setHeard('');
     setExplanation('');
-    setStatus('Tap to Listen');
+    setStatus('Speak English or German');
     setIsRecording(false);
 
   }
 
   async function startRecording() {
     try {
-      setStatus('Listening...');
+      setStatus('🎤 Recording...');
       setIsRecording(true);
       
       await Audio.requestPermissionsAsync();
@@ -52,14 +66,14 @@ export default function LinguaEar() {
 
   async function stopRecording(rec) {
     try {
-      setStatus('Processing...');
+      
       await rec.stopAndUnloadAsync();
       
       const uri = rec.getURI();
       await sendToWhisper(uri);
       
     } catch (err) {
-      setStatus('Tap to Listen');
+      setStatus('Speak English or German');
       setIsRecording(false);
     }
   }
@@ -86,8 +100,11 @@ export default function LinguaEar() {
       
       if (data.text) {
         setHeard(data.text);
+        setStatus(loadingMessages[0]);
         await sendToGPT(data.text);
-      } else {
+      } 
+      
+      else {
         setStatus('Nothing heard — try again');
         setIsRecording(false);
       }
@@ -99,6 +116,16 @@ export default function LinguaEar() {
   }
 
   async function sendToGPT(text) {
+
+    let messageIndex = 0;
+
+    const interval = setInterval(() => {
+      if (messageIndex < loadingMessages.length) {
+        setStatus(loadingMessages[messageIndex]);
+        messageIndex++;
+      }
+    }, 2000);
+
     try {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -111,13 +138,45 @@ export default function LinguaEar() {
           messages: [
             {
               role: 'system',
-              content: `You are LinguaEar, a German language learning assistant. 
-            When given a German phrase you heard in conversation:
-            1. Translate it to English
-            2. Tone: 😊 Friendly / 😠 Aggressive / 😐 Neutral / 👔 Formal
-            3. Break down key words and what they mean
-            4. Give one tip about when Germans use this phrase
-            Keep explanations short and friendly like a helpful friend.`
+              content: `You are LinguaEar, a friendly German language teacher.
+
+                        When given German OR English input, break down EVERY word:
+
+                        1. 📝 Natural translation
+
+                        2. 🔤 WORD BY WORD:
+                              For each word explain:
+- Nouns: 🔵 DER / 🔴 DIE / 🟢 DAS + meaning
+- Pronouns: meaning + case (Nominativ/Akkusativ/Dativ)
+- Verbs: meaning + type (Main verb/Helping verb/Modal)
+- Adjectives: meaning + what it describes
+- Prepositions: meaning + case it takes
+- Articles: der/die/das/ein/eine
+                         
+                        3. 🏗️ SENTENCE STRUCTURE:
+Show word positions:
+[Subject] [Verb] [Object]
+Rule: Verb ALWAYS in 2nd position!
+
+📖 GRAMMAR RULE:
+Which case is used and why
+(Nominativ/Akkusativ/Dativ/Genitiv)
+
+
+                        4. 🔄 ALTERNATIVE WAY:
+                              Show another way to say the same thing in German
+
+                        5. 💡 One usage tip
+
+                        Then add ONLY these lines at the very end:
+                        TONE: [😊 Friendly / 😠 Aggressive / 😐 Neutral / 👔 Formal]
+                        GRAMMAR: [structure in 2 lines]
+                        QUIZ: [similar but different question]
+                        WORDS: german=english=article
+
+                        IMPORTANT: Do NOT mention tone anywhere else except the TONE: line at the end!
+
+                        Keep it SHORT and FRIENDLY! 🎤`
             
             },
             {
@@ -129,20 +188,62 @@ export default function LinguaEar() {
       });
 
       const data = await response.json();
-      setExplanation(data.choices[0].message.content);
-      setStatus('Tap to Listen');
+      clearInterval(interval);
+      parseResponse(data.choices[0].message.content);
+      setStatus('Speak English or German');
       setIsRecording(false);
+
+         
       
     } catch (err) {
+      clearInterval(interval)
       setStatus('Error — try again');
       setIsRecording(false);
     }
   }
 
+  function parseResponse(response) {
+    const lines = response.split('\n');
+    const explanationLines: string[] = [];
+    
+    lines.forEach(line => {
+      if (line.startsWith('TONE:')) 
+        setTone(line.replace('TONE:', '').trim());
+      else if (line.startsWith('GRAMMAR:')) 
+        setGrammar(line.replace('GRAMMAR:', '').trim());
+      else if (line.startsWith('QUIZ:')) 
+        setQuiz(line.replace('QUIZ:', '').trim());
+      else if (line.startsWith('WORDS:')) 
+        setWords(line.replace('WORDS:', '').trim());
+      else if (!line.startsWith('TONE') && 
+               !line.startsWith('GRAMMAR') && 
+               !line.startsWith('QUIZ') && 
+               !line.startsWith('WORDS') &&
+               !line.includes('Tone:') &&
+               !line.includes('😊 Tone')) {
+        
+        // Clean markdown
+        const cleanLine = line
+          .replace(/\*\*/g, '')
+          .replace(/\*/g, '')
+          .replace(/###/g, '')
+          .replace(/##/g, '')
+          .trim();
+        
+        if (cleanLine) {
+          explanationLines.push(cleanLine);
+        }
+      }
+    });
+    
+    setExplanation(explanationLines.join('\n').trim());
+  }
+
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       
-      <Text style={styles.title}>🎤 LinguaEar</Text>
+      <Text style={styles.title}>LinguaEar</Text>
       <Text style={styles.subtitle}> Your AI German Companion </Text>
 
       <TouchableOpacity 
@@ -151,7 +252,7 @@ export default function LinguaEar() {
         disabled={isRecording}
       >
         <Text style={styles.buttonText}>
-          {isRecording ? '🔴 ' : '🎤 '}{status}
+          {isRecording ? '🔴 Listening...' : status}
         </Text>
       </TouchableOpacity>
 
@@ -167,12 +268,48 @@ export default function LinguaEar() {
       </View>
       ) : null}
 
-      {explanation ? (
-        <View style={styles.card}>
-          <Text style={styles.label}>💡 LinguaEar Says:</Text>
-          <Text style={styles.content}>{explanation}</Text>
-        </View>
-      ) : null}
+{explanation ? (
+  <View>
+    <View style={styles.card}>
+      <Text style={styles.label}>💡 LinguaEar Says:</Text>
+      <Text style={styles.content}>{explanation}</Text>
+      <Text style={styles.label}>😊 Tone:</Text>
+      <Text style={styles.content}>{tone}</Text>
+    </View>
+
+    <TouchableOpacity 
+      style={styles.secondaryButton}
+      onPress={() => setShowGrammar(!showGrammar)}
+    >
+      <Text style={styles.secondaryButtonText}>
+        📚 {showGrammar ? 'Hide Grammar' : 'Learn More'}
+      </Text>
+    </TouchableOpacity>
+
+    {showGrammar && (
+      <View style={styles.card}>
+        <Text style={styles.label}>🏗️ Grammar:</Text>
+        <Text style={styles.content}>{grammar}</Text>
+      </View>
+    )}
+
+    <TouchableOpacity 
+      style={styles.quizButton}
+      onPress={() => setShowQuiz(!showQuiz)}
+    >
+      <Text style={styles.secondaryButtonText}>
+        ❓ {showQuiz ? 'Hide Quiz' : 'Quiz Me!'}
+      </Text>
+    </TouchableOpacity>
+
+    {showQuiz && (
+      <View style={styles.card}>
+        <Text style={styles.label}>❓ Quick Quiz:</Text>
+        <Text style={styles.content}>{quiz}</Text>
+      </View>
+    )}
+  </View>
+) : null}
 
 
 <TouchableOpacity 
@@ -257,8 +394,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 
-
-
+  secondaryButton: {
+    backgroundColor: '#1e3a5f',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  quizButton: {
+    backgroundColor: '#2d1b69',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  }
 
 
 });
