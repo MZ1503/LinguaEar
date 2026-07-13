@@ -16,6 +16,8 @@ export default function TabLayout() {
         headerShown: false,
         tabBarButton: HapticTab,
       }}>
+      
+      {/* 1. Home Screen Tab */}
       <Tabs.Screen
         name="index"
         options={{
@@ -23,6 +25,8 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
         }}
       />
+      
+      {/* 2. Explore Screen Tab */}
       <Tabs.Screen
         name="explore"
         options={{
@@ -30,6 +34,15 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
         }}
       />
+
+      {/* 3. Game Screen (Hidden from Bottom Tab Bar) 🚫 */}
+      <Tabs.Screen
+        name="game"
+        options={{
+          href: null, 
+        }}
+      />
+
     </Tabs>
   );
 }

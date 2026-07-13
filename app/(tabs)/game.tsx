@@ -1,212 +1,129 @@
-import { Audio } from 'expo-av';
-import { useRouter } from 'expo-router';
-import { useState, useRef, useEffect } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useState } from 'react';
+import { ScrollView, Text, TouchableOpacity, View, Platform } from 'react-native';
+import { useGermanSpeechRecognition } from '../../src/hooks/useGermanSpeechRecognition';
+import { GERMAN_TEACHER_PROMPTS, OUTPUT_TOKENS_INSTRUCTION, LOADING_MESSAGES } from '../../src/constants/immigrationData';
+import { styles } from '../../src/styles/gameStyles';
 
 const groqApiKey = process.env.EXPO_PUBLIC_GROQ_API_KEY;
 
-interface Scenario {
-  id: string;
-  title: string;
-  aiStart: string;
-  context: string;
-}
-
-// Game Scenarios Configuration Array
-const SCENARIOS: Scenario[] = [
-  { id: 'cafe', title: '☕ Cafe Order', aiStart: 'Hallo! Was möchten Sie trinken?', context: 'You are a waiter at a German cafe. The user wants to order something.' },
-  { id: 'airport', title: '✈️ Airport Check-in', aiStart: 'Guten Tag. Wohin fliegen Sie heute?', context: 'You are an airport check-in agent. Ask the user for their passport or destination.' },
-  { id: 'taxi', title: '🚕 Taxi Ride', aiStart: 'Hallo, wohin soll es gehen?', context: 'You are a taxi driver in Berlin. Ask the user where they want to go.' }
-];
-
-export default function LinguaEarGame() {
-  const router = useRouter();
-  const recordingTimeoutRef = useRef<any>(null);
-
-  // TypeScript Optimized States
-  const [currentScenario, setCurrentScenario] = useState<Scenario>(SCENARIOS[0]);
-  const [aiPrompt, setAiPrompt] = useState<string>(SCENARIOS[0].aiStart);
-  const [status, setStatus] = useState<string>('Your turn to speak!');
+export default function GameModeHubScreen() {
+  const [currentMode, setCurrentMode] = useState<string | null>(null); // 'immigration', 'cafe', or 'taxi'
+  const [status, setStatus] = useState<string>('Select a level to start roleplaying!');
+  const [score, setScore] = useState<number>(0);
   const [heard, setHeard] = useState<string>('');
-  const [feedback, setFeedback] = useState<string>('');
-  const [score, setScore] = useState<number>(0); 
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [explanation, setExplanation] = useState<string>('');
+  const [aiPrompt, setAiPrompt] = useState<string>('');
   const [isRecording, setIsRecording] = useState<boolean>(false);
 
-  useEffect(() => {
-    return () => {
-      if (recordingTimeoutRef.current) clearTimeout(recordingTimeoutRef.current);
-    };
-  }, []);
+  // Hardware voice engine connection
+  const { startListening, stopListening } = useGermanSpeechRecognition(
+    (text) => { setHeard(text); sendToGemma(text); },
+    (err) => { setStatus(`Error: ${err}`); setIsRecording(false); }
+  );
 
-  // Change Scenario Game Level Engine
-  const switchScenario = (scenario: Scenario) => {
-    setCurrentScenario(scenario);
-    setAiPrompt(scenario.aiStart);
-    setHeard('');
-    setFeedback('');
-    setStatus('New Level: Speak now!');
-  };
-
-  async function startRecording() {
+  async function toggleGameMicrophone() {
+    if (!currentMode) return;
     try {
-      setStatus('🎤 Recording your reply...');
-      setIsRecording(true);
-      await Audio.requestPermissionsAsync();
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-
-      const { recording: newRecording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-      setRecording(newRecording);
-
-      recordingTimeoutRef.current = setTimeout(() => stopRecording(newRecording), 10000);
-    } catch (err) {
-      Alert.alert('Error', 'Microphone access needed');
-      setIsRecording(false);
-    }
+      if (isRecording) {
+        setStatus('⏳ Transcribing your speech...');
+        setIsRecording(false);
+        if (Platform.OS !== 'web') await stopListening();
+      } else {
+        setStatus('🎤 Listening... Speak German!');
+        setIsRecording(true);
+        if (Platform.OS === 'web') {
+          const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+          if (SpeechRecognition) {
+            const rec = new SpeechRecognition();
+            rec.lang = 'de-DE';
+            rec.onresult = (e: any) => { const text = e.results.transcript; setHeard(text); sendToGemma(text); };
+            rec.start();
+          } else { setStatus('Web audio not supported'); }
+        } else { await startListening(); }
+      }
+    } catch { setIsRecording(false); }
   }
 
-  async function stopRecording(activeRecording?: any) {
-    if (recordingTimeoutRef.current) clearTimeout(recordingTimeoutRef.current);
-    const currentRecording = activeRecording || recording;
-    if (!currentRecording) {
-      setIsRecording(false);
-      return;
-    }
+  async function sendToGemma(text: string) {
+    if (!currentMode) return;
+    let msgIdx = 0;
+    const interval = setInterval(() => { if (msgIdx < LOADING_MESSAGES.length) { setStatus(LOADING_MESSAGES[msgIdx]); msgIdx++; } }, 1500);
+
+    const levelPersona = GERMAN_TEACHER_PROMPTS[currentMode];
+    const systemPayload = `${levelPersona}\n\n${OUTPUT_TOKENS_INSTRUCTION}`;
 
     try {
-      setStatus('⏳ Groq processing audio...');
-      setIsRecording(false);
-      await currentRecording.stopAndUnloadAsync();
-      const uri = currentRecording.getURI();
-      setRecording(null);
-
-      if (uri) await sendToGroqWhisper(uri);
-    } catch (err) {
-      setStatus('Try again!');
-    }
-  }
-
-  // 1. STT Layer (Groq Whisper Integration)
-  async function sendToGroqWhisper(uri: string) {
-    try {
-      const formData = new FormData();
-      formData.append('file', { uri, name: 'audio.m4a', type: 'audio/m4a' } as any);
-      formData.append('model', 'whisper-large-v3'); 
-
-      const response = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      // 🔑 CORRECT ENDPOINT UPDATED HERE:
+      const response = await fetch('https://groq.com', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${groqApiKey}` },
-        body: formData,
+        headers: { 'Authorization': `Bearer ${groqApiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'gemma2-9b-it',
+          messages: [{ role: 'system', content: systemPayload }, { role: 'user', content: `I just said: ${text}` }]
+        })
       });
 
       const data = await response.json();
-      if (data.text) {
-        setHeard(data.text);
-        await getGameFeedback(data.text);
-      }
-    } catch (error) {
-      setStatus('Audio Error');
-    }
+      clearInterval(interval);
+      if (data.choices?.[0]?.message?.content) parseGameResponse(data.choices[0].message.content);
+      setStatus(`Playing Level: ${currentMode.toUpperCase()}`);
+    } catch { clearInterval(interval); setStatus('System Processing Error'); }
   }
 
-  // 2. Dynamic LLM Evaluation (Groq Gemma 2 System)
-  async function getGameFeedback(userText: string) {
-    try {
-      setStatus('🧠 AI Evaluation...');
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${groqApiKey}` },
-        body: JSON.stringify({
-          model: 'gemma2-9b-it',
-          messages: [
-            {
-              role: 'system',
-              content: `You are a game controller for a German learning app. Context: ${currentScenario.context}. AI said previously: "${aiPrompt}". Evaluate the user's response for grammar and context validity. Give a score from 10 to 100. format your output exactly like this:
-              Grammar Check: [Short review]
-              Score: [Number]
-              Next AI Response: [Your next natural continuation in German]`
-            },
-            { role: 'user', content: userText }
-          ],
-        }),
-      });
+  function parseGameResponse(response: string) {
+    const lines = response.split('\n');
+    const explanationLines: string[] = [];
 
-      const aiData = await response.json();
-      const aiResponse = aiData.choices[0].message.content;
-
-      setFeedback(aiResponse);
-      const scoreMatch = aiResponse.match(/Score:\s*(\d+)/);
-      if (scoreMatch) {
-        const roundScore = parseInt(scoreMatch[1]);
-        if (!isNaN(roundScore)) setScore(prev => prev + roundScore);
+    lines.forEach(line => {
+      const trimmed = line.trim();
+      if (/^SCORE:/i.test(trimmed)) {
+        const parsedScore = parseInt(trimmed.replace(/^SCORE:/i, '').trim());
+        if (!isNaN(parsedScore)) setScore(prev => prev + parsedScore);
+      } else if (/^(NEXT AI RESPONSE|AI RESPONSE):/i.test(trimmed)) {
+        setAiPrompt(trimmed.replace(/^(NEXT AI RESPONSE|AI RESPONSE):/i, '').trim());
+      } else if (!/^(TONE|GRAMMAR|QUIZ|WORDS|SCORE|NEXT)/i.test(trimmed)) {
+        const cleanLine = trimmed.replace(/\*\*/g, '').replace(/\*/g, '').trim();
+        if (cleanLine) explanationLines.push(cleanLine);
       }
-
-      const nextPromptMatch = aiResponse.match(/Next AI Response:\s*(.*)/);
-      if (nextPromptMatch) setAiPrompt(nextPromptMatch[1]);
-
-      setStatus('Your turn again!');
-    } catch (error) {
-      setStatus('Analysis Error');
-    }
+    });
+    setExplanation(explanationLines.join('\n').trim());
   }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>🏆 Total Score: {score}</Text>
-      
-      {/* Dynamic Scenario Chips */}
-      <View style={styles.badgeContainer}>
-        {SCENARIOS.map(s => (
-          <TouchableOpacity key={s.id} style={[styles.chip, currentScenario.id === s.id && styles.activeChip]} onPress={() => switchScenario(s)}>
-            <Text style={styles.chipText}>{s.title}</Text>
+      <Text style={styles.title}>LinguaEar 🎮</Text>
+      <Text style={styles.subtitle}>Immigrant Game Mode Hub</Text>
+
+      {!currentMode ? (
+        <View style={{ width: '100%', gap: 15, marginTop: 10 }}>
+          <TouchableOpacity style={styles.secondaryButton} onPress={() => { setCurrentMode('immigration'); setStatus('Level: Immigration active!'); setAiPrompt('Guten Tag. Zeigen Sie mir bitte Ihren Reisepass.'); }}>
+            <Text style={styles.secondaryButtonText}>🏢 Immigration Office (Ausländerbehörde)</Text>
           </TouchableOpacity>
-        ))}
-      </View>
+          <TouchableOpacity style={styles.quizButton} onPress={() => { setCurrentMode('cafe'); setStatus('Level: Cafe active!'); setAiPrompt('Hallo! Was darf ich Ihnen heute bringen?'); }}>
+            <Text style={styles.secondaryButtonText}>☕ Traditional German Café</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.secondaryButton, { backgroundColor: '#15803d' }]} onPress={() => { setCurrentMode('taxi'); setStatus('Level: Taxi active!'); setAiPrompt('Moin! Wohin soll es denn gehen?'); }}>
+            <Text style={styles.secondaryButtonText}>🚖 Taxi Ride Survival</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={{ width: '100%', alignItems: 'center' }}>
+          <View style={styles.scoreBanner}><Text style={styles.scoreText}>🔥 Score: {score} XP</Text></View>
+          <Text style={styles.subtitle}>{status}</Text>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>🤖 AI Companion Says:</Text>
-        <Text style={styles.promptText}>{aiPrompt}</Text>
-      </View>
+          {aiPrompt && <View style={[styles.card, { borderLeftColor: '#4f46e5', borderLeftWidth: 5 }]}><Text style={styles.label}>Officer/Staff Prompt:</Text><Text style={styles.content}>{aiPrompt}</Text></View>}
+          {heard && <View style={[styles.card, { borderLeftColor: '#10b981', borderLeftWidth: 5 }]}><Text style={styles.label}>You Attempted:</Text><Text style={styles.content}>{heard}</Text></View>}
+          {explanation && <View style={[styles.card, { borderLeftColor: '#f59e0b', borderLeftWidth: 5 }]}><Text style={styles.label}>Feedback Analysis:</Text><Text style={styles.content}>{explanation}</Text></View>}
 
-      {heard !== '' && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>✍️ You Said:</Text>
-          <Text style={styles.text}>{heard}</Text>
+          <TouchableOpacity style={[styles.button, isRecording && styles.buttonRecording]} onPress={toggleGameMicrophone}>
+            <Text style={styles.buttonText}>{isRecording ? '🛑 Stop Recording' : '🎤 Respond in German'}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => { setCurrentMode(null); setAiPrompt(''); setHeard(''); setExplanation(''); setStatus('Select a level to start roleplaying!'); }}>
+            <Text style={[styles.resetButton, { marginTop: 10, fontWeight: 'bold' }]}>⬅️ Back to Level Selection</Text>
+          </TouchableOpacity>
         </View>
       )}
-
-      {feedback !== '' && (
-        <View style={styles.feedbackCard}>
-          <Text style={styles.feedbackText}>{feedback}</Text>
-        </View>
-      )}
-
-      <Text style={styles.status}>{status}</Text>
-
-      <TouchableOpacity style={[styles.micButton, isRecording && styles.recordingButton]} onPress={isRecording ? () => stopRecording(recording) : startRecording}>
-        <Text style={styles.buttonText}>{isRecording ? '🛑 STOP' : '🎤 REPLY IN GERMAN'}</Text>
-      </TouchableOpacity>
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flexGrow: 1, backgroundColor: '#121212', padding: 20, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 24, fontWeight: 'bold', color: '#FFD700', marginBottom: 20 },
-  badgeContainer: { flexDirection: 'row', marginBottom: 20 },
-  chip: { padding: 10, backgroundColor: '#222', borderRadius: 20, marginHorizontal: 5 },
-  activeChip: { backgroundColor: '#007AFF' },
-  chipText: { color: '#fff', fontWeight: 'bold' },
-  card: { width: '100%', backgroundColor: '#1E1E1E', padding: 15, borderRadius: 12, marginBottom: 15 },
-  feedbackCard: { width: '100%', backgroundColor: '#2A2A2A', padding: 15, borderRadius: 12, borderLeftWidth: 4, borderLeftColor: '#4CD964', marginBottom: 15 },
-  cardTitle: { color: '#8E8E93', fontSize: 12, fontWeight: 'bold', marginBottom: 5 },
-  promptText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  text: { color: '#fff', fontSize: 16 },
-  feedbackText: { color: '#fff', fontSize: 14, lineHeight: 20 },
-  status: { color: '#007AFF', marginVertical: 15, fontWeight: '600' },
-  micButton: { width: '100%', padding: 18, backgroundColor: '#007AFF', borderRadius: 30, alignItems: 'center' },
-  recordingButton: { backgroundColor: '#FF3B30' },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
-});
