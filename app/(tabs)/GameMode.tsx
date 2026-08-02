@@ -8,7 +8,7 @@ import { useAudioProcessor } from '../../src/hooks/useAudioProcessor';
 
 import { styles } from '../../src/styles/gameStyles';
 
-export default function GameModeHubScreen() {
+export default function GameMode() {
   const [isRecording, setIsRecording] = useState<boolean>(false);
   
   const game = useGameEngine();
@@ -44,7 +44,7 @@ export default function GameModeHubScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>LinguaEar 🎮</Text>
+      <Text style={styles.title}>LinguaEar 🎲</Text>
       <Text style={styles.subtitle}>Immigrant Game Mode Hub</Text>
 
       {!game.currentMode ? (

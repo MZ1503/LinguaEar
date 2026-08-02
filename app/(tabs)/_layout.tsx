@@ -1,9 +1,9 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
+import { Ionicons } from '@expo/vector-icons';
 
 import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
+import { Colors } from '@/src/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function TabLayout() {
@@ -21,25 +21,35 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          title: 'Speak',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'ear' : 'ear-outline'} size={26} color={color} />
+        ),
         }}
       />
       
-      {/* 2. Explore Screen Tab */}
+     
+      {/* 2. Game Screen */}
       <Tabs.Screen
-        name="explore"
+        name="GameMode"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'Game Mode',
+          tabBarIcon: ({ color, focused }) => (
+           
+            <Ionicons name={focused ? 'dice' : 'dice-outline'} size={26} color={color} />
+          ),
         }}
       />
 
-      {/* 3. Game Screen (Hidden from Bottom Tab Bar) 🚫 */}
+      {/* 3. Privacy Screen*/}
       <Tabs.Screen
-        name="game"
+        name="privacy"
         options={{
-          href: null, 
+          title: 'Privacy',
+          tabBarIcon: ({ color, focused }) => (
+            
+            <Ionicons name={focused ? 'shield-checkmark' : 'shield-checkmark-outline'} size={26} color={color} />
+          ),
         }}
       />
 

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 import { useNormalAudioProcessor } from '../../src/hooks/useNormalAudioProcessor'; 
-import { styles } from '../(tabs)/style'; 
+import { styles } from '../../src/constants/style'; 
 
 // TypeScript Interface for Article Badge
 interface GermanArticle {
