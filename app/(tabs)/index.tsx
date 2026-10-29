@@ -2,8 +2,8 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
-import { useNormalAudioProcessor } from '../../src/hooks/useNormalAudioProcessor'; 
-import { styles } from '../../src/constants/style'; 
+import { styles } from '../../src/constants/style';
+import { useNormalAudioProcessor } from '../../src/hooks/useNormalAudioProcessor';
 
 // TypeScript Interface for Article Badge
 interface GermanArticle {
