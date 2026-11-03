@@ -1,14 +1,8 @@
 import { StyleSheet } from 'react-native';
 
-export const authColors = {
-  bg: '#0b0f19',
-  card: '#151b2b',
-  border: '#252d42',
-  accent: '#00d2ff',
-  text: '#ffffff',
-  muted: '#8b93a7',
-  error: '#ff6b6b',
-};
+import { brand } from '@/src/shared/theme/brand';
+
+export const authColors = brand;
 
 export const authStyles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: authColors.bg },

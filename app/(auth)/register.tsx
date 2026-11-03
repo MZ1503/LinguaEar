@@ -13,10 +13,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useAuth } from '@/src/store/authStore';
-import { authColors, authStyles as s } from '@/src/styles/authStyles';
+import { useAuth } from '@/src/features/auth';
+import { authColors, authStyles as s } from '@/src/features/auth/authStyles';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const USERNAME_RE = /^[A-Za-z0-9_.]{3,30}$/;
 
 type Errors = { name?: string; email?: string; password?: string; confirm?: string };
 
@@ -32,7 +33,7 @@ export default function Register() {
 
   const validate = (): Errors => {
     const e: Errors = {};
-    if (!name.trim()) e.name = 'Enter your name.';
+    if (!USERNAME_RE.test(name.trim())) e.name = '3-30 characters: letters, numbers, _ or .';
     if (!EMAIL_RE.test(email.trim())) e.email = 'Enter a valid email address.';
     if (password.length < 8) e.password = 'Use at least 8 characters.';
     if (confirm !== password) e.confirm = 'Passwords do not match.';
@@ -83,7 +84,7 @@ export default function Register() {
           <Text style={s.title}>Create your account</Text>
           <Text style={s.subtitle}>Train your ear for real conversations</Text>
 
-          {field('Name', name, setName, 'name', { placeholder: 'Your name', autoComplete: 'name' })}
+          {field('Username', name, setName, 'name', { placeholder: 'your_name', autoComplete: 'username', autoCapitalize: 'none' })}
           {field('Email', email, setEmail, 'email', {
             placeholder: 'you@example.com',
             autoCapitalize: 'none',

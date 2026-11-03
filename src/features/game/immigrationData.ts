@@ -12,7 +12,7 @@ export const GERMAN_TEACHER_PROMPTS: Record<string, string> = {
     "Provide a brief 1-line feedback analysis in English underneath.";
   
   export const LOADING_MESSAGES = [
-    "⏳ Processing your speech stream...",
-    "🧠 Bureaucrat AI is reviewing your German...",
-    "⚡ Translating and generating feedback..."
+    "Processing your speech...",
+    "Reviewing your German...",
+    "Preparing feedback..."
   ];

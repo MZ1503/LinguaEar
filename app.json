@@ -7,7 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "linguaear",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
     },
@@ -16,7 +15,6 @@
         "backgroundColor": "#050510",
         "foregroundImage": "./assets/images/icon.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "versionCode": 6,
       "package": "com.linguaear.app"
@@ -27,6 +25,12 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "LinguaEar uses the camera to read German and English text and translate it for you."
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -43,14 +47,14 @@
       "expo-web-browser",
       "expo-image",
       "expo-status-bar",
-       [
-    "expo-audio",
-    {
-      "microphonePermission": "Allow LinguaEar to use your microphone for German pronunciation practice."
-    }
-       ]
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow LinguaEar to use your microphone for German pronunciation practice."
+        }
+      ],
+      "expo-asset"
     ],
-
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true

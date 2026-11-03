@@ -7,16 +7,19 @@ import {
   setAudioModeAsync,
 } from 'expo-audio';
 
+import { sanitizeCompounds } from '@/src/shared/german/compounds';
+import type { Compound } from '@/src/shared/german/compounds';
+
 interface GermanArticle {
   word: string;
   gender: 'der' | 'die' | 'das';
 }
 
 const LOADING_MESSAGES = [
-  '🎤 Recording captured...',
-  '📝 Transcribing speech...',
-  '🧠 Analyzing grammar...',
-  '💡 Creating quiz & breakdown...',
+  'Recording captured...',
+  'Transcribing speech...',
+  'Analyzing grammar...',
+  'Creating quiz & breakdown...',
 ];
 
 const OPENAI_WHISPER_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
@@ -30,6 +33,7 @@ export function useNormalAudioProcessor(
   const [status, setStatus] = useState('Speak English or German');
   const [isRecording, setIsRecording] = useState(false);
   const [heard, setHeard] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const [analysis, setAnalysis] = useState({
     explanation: '',
@@ -37,6 +41,7 @@ export function useNormalAudioProcessor(
     grammar: '',
     quiz: '',
     articles: [] as GermanArticle[],
+    compounds: [] as Compound[],
   });
 
   // expo-audio recorder hook
@@ -52,7 +57,7 @@ export function useNormalAudioProcessor(
 
   function resetApp() {
     setHeard('');
-    setAnalysis({ explanation: '', tone: '', grammar: '', quiz: '', articles: [] });
+    setAnalysis({ explanation: '', tone: '', grammar: '', quiz: '', articles: [], compounds: [] });
     setStatus('Speak English or German');
     setIsRecording(false);
   }
@@ -61,7 +66,7 @@ export function useNormalAudioProcessor(
     if (isRecording || isProcessingRef.current) return;
 
     try {
-      setStatus('🎤 Recording...');
+      setStatus('Recording…');
       setIsRecording(true);
 
       const { granted } = await requestRecordingPermissionsAsync();
@@ -94,7 +99,7 @@ export function useNormalAudioProcessor(
 
     try {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      setStatus('🔄 Processing...');
+      setStatus('Processing…');
       setIsRecording(false);
 
       await recorder.stop();
@@ -102,6 +107,7 @@ export function useNormalAudioProcessor(
 
       if (uri) {
         isProcessingRef.current = true;
+        setIsProcessing(true);
         await processSpeechOnBackend(uri);
       } else {
         throw new Error('No recording URI');
@@ -112,6 +118,7 @@ export function useNormalAudioProcessor(
       onTranscriptionError?.('Failed to stop recording');
     } finally {
       isProcessingRef.current = false;
+      setIsProcessing(false);
     }
   }
 
@@ -182,8 +189,24 @@ export function useNormalAudioProcessor(
           "quiz": "Provide 1 small multiple choice question or fill-in-the-blank question based on this sentence to test the user.",
           "articles": [
             { "word": "Noun (e.g., Tisch)", "gender": "der" }
+          ],
+          "compounds": [
+            {
+              "word": "Handschuh",
+              "parts": [
+                { "text": "Hand", "meaning": "hand" },
+                { "text": "Schuh", "meaning": "shoe" }
+              ],
+              "meaning": "glove"
+            }
           ]
         }
+
+        COMPOUND WORD RULES for "compounds":
+        - Include every German compound word (a word built from two or more words) that appears in the user's sentence. Use [] if there are none.
+        - Split into the smallest meaningful parts. The "text" of all parts joined together MUST spell the original word exactly, with no letters added or dropped.
+        - A linking letter (Fugen-s, -n, -en, -e, -es) is its own part with an empty "meaning".
+        - "meaning" of the whole word and of each part is a short English translation.
       `;
 
       const gptResponse = await fetch(OPENAI_CHAT_URL, {
@@ -215,6 +238,7 @@ export function useNormalAudioProcessor(
         grammar: '',
         quiz: '',
         articles: [] as GermanArticle[],
+        compounds: [] as unknown[],
       };
       try {
         evaluationJson = JSON.parse(evaluationText);
@@ -231,6 +255,7 @@ export function useNormalAudioProcessor(
         grammar: evaluationJson.grammar || '',
         quiz: evaluationJson.quiz || '',
         articles: evaluationJson.articles || [],
+        compounds: sanitizeCompounds(evaluationJson.compounds),
       });
       setStatus('Speak English or German');
     } catch (error) {
@@ -244,6 +269,7 @@ export function useNormalAudioProcessor(
   return {
     status,
     isRecording,
+    isProcessing,
     heard,
     analysis,
     resetApp,

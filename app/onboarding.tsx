@@ -3,8 +3,8 @@ import React, { useRef, useState } from 'react';
 import { FlatList, Text, TouchableOpacity, useWindowDimensions, View, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useAuth } from '@/src/store/authStore';
-import { authColors, authStyles as s } from '@/src/styles/authStyles';
+import { useAuth } from '@/src/features/auth';
+import { authColors, authStyles as s } from '@/src/features/auth/authStyles';
 
 type Icon = React.ComponentProps<typeof Ionicons>['name'];
 

@@ -13,13 +13,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useAuth } from '@/src/store/authStore';
-import { authColors, authStyles as s } from '@/src/styles/authStyles';
+import { useAuth } from '@/src/features/auth';
+import { authColors, authStyles as s } from '@/src/features/auth/authStyles';
 
 export default function Login() {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -31,7 +32,7 @@ export default function Login() {
     setBusy(true);
     setError('');
     try {
-      await login(email, password);
+      await login(email, password, rememberMe);
       // The root layout's route guard moves us into the app.
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong.');
@@ -70,6 +71,28 @@ export default function Login() {
             autoComplete="current-password"
             onSubmitEditing={submit}
           />
+
+          <TouchableOpacity
+            style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}
+            onPress={() => setRememberMe((v) => !v)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: rememberMe }}>
+            <View
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: 6,
+                borderWidth: 1.5,
+                borderColor: rememberMe ? authColors.accent : authColors.border,
+                backgroundColor: rememberMe ? authColors.accent : 'transparent',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: 10,
+              }}>
+              {rememberMe && <Text style={{ color: authColors.bg, fontWeight: 'bold', fontSize: 14 }}>✓</Text>}
+            </View>
+            <Text style={s.footerText}>Remember me</Text>
+          </TouchableOpacity>
 
           {!!error && <Text style={s.formError}>{error}</Text>}
 

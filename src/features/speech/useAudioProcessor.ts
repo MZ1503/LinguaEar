@@ -7,13 +7,13 @@ import {
 } from 'expo-audio';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Platform } from 'react-native';
-import { fetchGroqEvaluation } from '../services/groqService';
+import { fetchGroqEvaluation } from '@/src/shared/api/groqService';
 
 const LOADING_MESSAGES = [
-  '🎤 Recording captured...',
-  '📝 Transcribing with Whisper...',
-  '🧠 Llama-3 evaluating speech...',
-  '💡 Formulating corrections...',
+  'Recording captured...',
+  'Transcribing with Whisper...',
+  'Llama-3 evaluating speech...',
+  'Formulating corrections...',
 ];
 
 const GROQ_WHISPER_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
@@ -26,6 +26,7 @@ export function useAudioProcessor(
   const [status, setStatus] = useState('Speak English or German');
   const [isRecording, setIsRecording] = useState(false);
   const [heard, setHeard] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const [analysis, setAnalysis] = useState({
     score: 0,
@@ -56,7 +57,7 @@ export function useAudioProcessor(
     if (isRecording || isProcessingRef.current) return;
 
     try {
-      setStatus('🎤 Recording...');
+      setStatus('Recording…');
       setIsRecording(true);
 
       // Permissions
@@ -93,7 +94,7 @@ export function useAudioProcessor(
 
     try {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      setStatus('🔄 Processing...');
+      setStatus('Processing…');
       setIsRecording(false);
 
       await recorder.stop();
@@ -101,6 +102,7 @@ export function useAudioProcessor(
 
       if (uri) {
         isProcessingRef.current = true;
+        setIsProcessing(true);
         await processSpeechOnBackend(uri);
       } else {
         throw new Error('No recording URI');
@@ -111,6 +113,7 @@ export function useAudioProcessor(
       onTranscriptionError?.('Failed to stop recording');
     } finally {
       isProcessingRef.current = false;
+      setIsProcessing(false);
     }
   }
 
@@ -200,6 +203,7 @@ export function useAudioProcessor(
   return {
     status,
     isRecording,
+    isProcessing,
     heard,
     analysis,
     resetApp,
