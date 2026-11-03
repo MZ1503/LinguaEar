@@ -20,33 +20,8 @@
     "expo": "~57.0.0",
     "expo-audio": "~57.0.5",
     "expo-av": "~16.0.8",
-<<<<<<< HEAD
-    "expo-constants": "~18.0.13",
-    "expo-crypto": "~15.0.9",
-    "expo-font": "~14.0.11",
-    "expo-haptics": "~15.0.8",
-    "expo-image": "~3.0.11",
-    "expo-linking": "~8.0.11",
-    "expo-router": "~6.0.23",
-    "expo-speech": "~14.0.8",
-    "expo-splash-screen": "~31.0.13",
-    "expo-status-bar": "~3.0.9",
-    "expo-symbols": "~1.0.8",
-    "expo-system-ui": "~6.0.9",
-    "expo-updates": "~29.0.16",
-    "expo-web-browser": "~15.0.10",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
-    "react-native": "0.81.5",
-    "react-native-gesture-handler": "~2.28.0",
-    "react-native-reanimated": "~4.1.1",
-    "react-native-safe-area-context": "~5.6.0",
-    "react-native-screens": "~4.16.0",
-    "react-native-web": "~0.21.0",
-    "react-native-worklets": "0.5.1",
-    "zustand": "^5.0.16"
-=======
     "expo-constants": "~57.0.22",
+    "expo-crypto": "~57.0.4",
     "expo-font": "~57.0.4",
     "expo-haptics": "~57.0.3",
     "expo-image": "~57.0.5",
@@ -67,8 +42,8 @@
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
     "react-native-web": "~0.21.0",
-    "react-native-worklets": "0.10.1"
->>>>>>> f23d173a34cbc11f22eff73f4bcdee4424368579
+    "react-native-worklets": "0.10.1",
+    "zustand": "^5.0.16"
   },
   "devDependencies": {
     "@types/react": "~19.2.4",
