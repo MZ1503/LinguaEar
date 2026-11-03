@@ -22,5 +22,11 @@ export const saveAnalysis = (draft: AnalysisDraft) =>
     parse<SavedAnalysis>(r),
   );
 
+export const updateQuizScore = (id: number, score: number, total: number) =>
+  authedFetch(`/analyses/${id}/quiz-score`, {
+    method: 'PATCH',
+    body: JSON.stringify({ quiz_score: score, quiz_total: total }),
+  }).then((r) => parse<SavedAnalysis>(r));
+
 export const deleteAnalysis = (id: number) =>
   authedFetch(`/analyses/${id}`, { method: 'DELETE' }).then((r) => parse<void>(r));

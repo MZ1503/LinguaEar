@@ -13,11 +13,13 @@ type Props = {
   action?: { label: string; onPress: () => void };
   /** Makes the header tappable and hides the body until opened. */
   collapsible?: boolean;
+  /** Small pill next to the title, e.g. a quiz score. */
+  badge?: string;
   children: React.ReactNode;
 };
 
 /** Titled card used for results: a tinted icon tile, an uppercase label and the content below. */
-export function Section({ title, icon, tint, action, collapsible, children }: Props) {
+export function Section({ title, icon, tint, action, collapsible, badge, children }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [open, setOpen] = useState(!collapsible);
@@ -29,6 +31,11 @@ export function Section({ title, icon, tint, action, collapsible, children }: Pr
         <Ionicons name={icon} size={16} color={color} />
       </View>
       <Text style={styles.title}>{title}</Text>
+      {!!badge && (
+        <View style={[styles.badge, { backgroundColor: `${color}22` }]}>
+          <Text style={[styles.badgeText, { color }]}>{badge}</Text>
+        </View>
+      )}
       {action && (
         <Pressable onPress={action.onPress} hitSlop={8}>
           <Text style={[styles.action, { color: colors.accent }]}>{action.label}</Text>
@@ -51,7 +58,8 @@ export function Section({ title, icon, tint, action, collapsible, children }: Pr
       ) : (
         header
       )}
-      {open && <View style={styles.body}>{children}</View>}
+      {/* Stay mounted while collapsed so a quiz in progress isn't lost. */}
+      <View style={[styles.body, !open && styles.hidden]}>{children}</View>
     </View>
   );
 }
@@ -76,6 +84,9 @@ const createStyles = (c: Palette) =>
       letterSpacing: 1,
       textTransform: 'uppercase',
     },
+    badge: { borderRadius: 999, paddingVertical: 2, paddingHorizontal: 8 },
+    badgeText: { fontSize: 12, fontWeight: '800' },
     action: { fontSize: 13, fontWeight: '600' },
     body: { marginTop: 12 },
+    hidden: { display: 'none' },
   });

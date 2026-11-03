@@ -1,7 +1,9 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 
-import { fetchGroqEvaluation } from '@/src/shared/api/groqService';
+import { recordGame } from '@/src/features/score/scoreThunks';
+import { aiChat } from '@/src/features/ai';
 
+import { parseGameResponse } from './gameParser';
 import type { GameRootState } from './gameTypes';
 import { GERMAN_TEACHER_PROMPTS, LOADING_MESSAGES, OUTPUT_TOKENS_INSTRUCTION } from './immigrationData';
 import { setStatus, speechHeard } from './gameActions';
@@ -21,7 +23,14 @@ export const processUserSpeech = createAsyncThunk<string, string, { state: GameR
 
     try {
       const systemPayload = `${GERMAN_TEACHER_PROMPTS[currentMode]}\n\n${OUTPUT_TOKENS_INSTRUCTION}`;
-      return await fetchGroqEvaluation(systemPayload, text);
+      const reply = await aiChat('game', [
+        { role: 'system', content: systemPayload },
+        { role: 'user', content: `I just said: ${text}` },
+      ]);
+      // Points earned this turn go to the server, where the user's total lives.
+      const { scoreDelta } = parseGameResponse(reply);
+      if (scoreDelta > 0) dispatch(recordGame(scoreDelta));
+      return reply;
     } finally {
       clearInterval(interval);
     }

@@ -4,7 +4,8 @@ import React, { useMemo, useState } from 'react';
 import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { useAuth } from '@/src/features/auth';
-import { useGameEngine } from '@/src/features/game';
+import { useScore } from '@/src/features/score';
+import { UsageCard } from '@/src/features/usage';
 import type { Palette } from '@/src/shared/theme/brand';
 import { useTheme } from '@/src/shared/theme/useTheme';
 
@@ -16,7 +17,7 @@ export function ProfileScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { user, logout } = useAuth();
-  const { score } = useGameEngine();
+  const { summary } = useScore();
   const router = useRouter();
   const [showPrivacy, setShowPrivacy] = useState(false);
 
@@ -53,9 +54,37 @@ export function ProfileScreen() {
 
         <View style={styles.stats}>
           <Stat icon="flag-outline" label="Goal" value={capitalize(user.goal)} />
-          <Stat icon="stats-chart-outline" label="Level" value={capitalize(user.level)} />
-          <Stat icon="trophy-outline" label="Score" value={String(score)} />
+          <Stat icon="stats-chart-outline" label="English" value={capitalize(user.level)} />
+          <Stat icon="flash-outline" label="Total XP" value={String(summary?.total_points ?? 0)} />
         </View>
+
+        {summary && (
+          <View style={styles.progressCard}>
+            <View style={styles.progressTop}>
+              <Text style={styles.levelText}>Level {summary.level}</Text>
+              <Text style={styles.levelXp}>
+                {summary.level_points} / {summary.level_size} XP
+              </Text>
+            </View>
+            <View style={styles.track}>
+              <View
+                style={[styles.fill, { width: `${(summary.level_points / summary.level_size) * 100}%` }]}
+              />
+            </View>
+            <View style={styles.progressBottom}>
+              <View style={styles.pill}>
+                <Ionicons name="flame-outline" size={14} color={colors.accent} />
+                <Text style={styles.pillText}>
+                  {summary.streak_days} day{summary.streak_days === 1 ? '' : 's'} streak
+                </Text>
+              </View>
+              <Text style={styles.today}>+{summary.today_points} XP today</Text>
+            </View>
+          </View>
+        )}
+
+        <Text style={styles.section}>Today&apos;s limits</Text>
+        <UsageCard />
 
         <Text style={styles.section}>Account</Text>
         <View style={styles.card}>
@@ -174,6 +203,41 @@ const createStyles = (c: Palette) =>
       marginTop: 10,
       paddingHorizontal: 12,
     },
+    progressCard: {
+      backgroundColor: c.card,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 28,
+    },
+    progressTop: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'baseline',
+      marginBottom: 10,
+    },
+    levelText: { color: c.text, fontSize: 18, fontWeight: '800' },
+    levelXp: { color: c.muted, fontSize: 13, fontWeight: '600' },
+    track: { height: 8, borderRadius: 4, backgroundColor: c.border, overflow: 'hidden' },
+    fill: { height: 8, borderRadius: 4, backgroundColor: c.accent },
+    progressBottom: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: 12,
+    },
+    pill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: c.accentSoft,
+      borderRadius: 999,
+      paddingVertical: 5,
+      paddingHorizontal: 10,
+    },
+    pillText: { color: c.accent, fontSize: 12, fontWeight: '700' },
+    today: { color: c.muted, fontSize: 12, fontWeight: '600' },
     rowDivider: { borderTopWidth: 1, borderTopColor: c.border },
     email: { color: c.muted, fontSize: 14, marginTop: 4 },
     stats: { flexDirection: 'row', gap: 10, marginBottom: 28 },

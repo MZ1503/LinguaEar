@@ -7,8 +7,11 @@ import {
   setAudioModeAsync,
 } from 'expo-audio';
 
+import { aiChat, aiTranscribe } from '@/src/features/ai';
 import { sanitizeCompounds } from '@/src/shared/german/compounds';
 import type { Compound } from '@/src/shared/german/compounds';
+import { sanitizeQuiz } from '@/src/shared/german/quiz';
+import type { QuizQuestion } from '@/src/shared/german/quiz';
 
 interface GermanArticle {
   word: string;
@@ -22,13 +25,9 @@ const LOADING_MESSAGES = [
   'Creating quiz & breakdown...',
 ];
 
-const OPENAI_WHISPER_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
-const OPENAI_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const openAiApiKey = process.env.EXPO_PUBLIC_GROQ_API_KEY;
-
 export function useNormalAudioProcessor(
   onTranscriptionSuccess?: (text: string) => void,
-  onTranscriptionError?: (err: string) => void
+  onTranscriptionError?: (err: string) => void,
 ) {
   const [status, setStatus] = useState('Speak English or German');
   const [isRecording, setIsRecording] = useState(false);
@@ -40,6 +39,7 @@ export function useNormalAudioProcessor(
     tone: '',
     grammar: '',
     quiz: '',
+    quizQuestions: [] as QuizQuestion[],
     articles: [] as GermanArticle[],
     compounds: [] as Compound[],
   });
@@ -57,7 +57,15 @@ export function useNormalAudioProcessor(
 
   function resetApp() {
     setHeard('');
-    setAnalysis({ explanation: '', tone: '', grammar: '', quiz: '', articles: [], compounds: [] });
+    setAnalysis({
+      explanation: '',
+      tone: '',
+      grammar: '',
+      quiz: '',
+      quizQuestions: [],
+      articles: [],
+      compounds: [],
+    });
     setStatus('Speak English or German');
     setIsRecording(false);
   }
@@ -132,39 +140,10 @@ export function useNormalAudioProcessor(
     }, 2000);
 
     try {
-      if (!openAiApiKey) {
-        throw new Error('Missing Groq API Key');
-      }
-
-      const formData = new FormData();
-      const uriParts = uri.split('.');
-      const fileType = uriParts[uriParts.length - 1] || 'm4a';
-
-      formData.append('file', {
-        uri: Platform.OS === 'ios' ? uri.replace('file://', '') : uri,
-        type: `audio/${fileType}`,
-        name: `recording.${fileType}`,
-      } as any);
-
-      formData.append('model', 'whisper-large-v3');
-
-      const whisperResponse = await fetch(OPENAI_WHISPER_URL, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${openAiApiKey}`,
-        },
-        body: formData,
-      });
-
-      if (!whisperResponse.ok) {
-        throw new Error('Whisper transcription failed');
-      }
-
-      const whisperData = await whisperResponse.json();
-      const transcribedText = whisperData.text || '';
-
+      // The backend holds the API key and enforces the daily limits.
+      const transcribedText = await aiTranscribe(Platform.OS === 'ios' ? uri.replace('file://', '') : uri);
       if (!transcribedText) {
-        throw new Error('No transcription text returned');
+        throw new Error('No speech was detected. Try again.');
       }
 
       onTranscriptionSuccess?.(transcribedText);
@@ -186,7 +165,14 @@ export function useNormalAudioProcessor(
           "explanation": "Break down the sentence word-by-word. Explain spelling, word order, and articles (der/die/das) gently.",
           "tone": "Briefly describe the tone (e.g., Friendly, Formal, Direct)",
           "grammar": "Explain the key grammatical rule used here (e.g., Akkusativ case, Verb position) in 2-3 sentences.",
-          "quiz": "Provide 1 small multiple choice question or fill-in-the-blank question based on this sentence to test the user.",
+          "quiz": [
+            {
+              "question": "A multiple choice question about the user's sentence, written in English",
+              "options": ["option A", "option B", "option C"],
+              "answer_index": 0,
+              "explanation": "One short sentence explaining why the answer is right"
+            }
+          ],
           "articles": [
             { "word": "Noun (e.g., Tisch)", "gender": "der" }
           ],
@@ -202,6 +188,12 @@ export function useNormalAudioProcessor(
           ]
         }
 
+        QUIZ RULES for "quiz":
+        - Write exactly 3 questions about the user's sentence, each with 3 or 4 options and exactly one correct answer.
+        - Mix the types: the article of a noun (options der/die/das), a fill-in-the-blank with a German word from the sentence, and the meaning of a word or phrase.
+        - "answer_index" is the zero-based position of the correct option in "options". Double-check that it really points at the correct option.
+        - Never give two options that are both correct. Keep options short.
+
         COMPOUND WORD RULES for "compounds":
         - Include every German compound word (a word built from two or more words) that appears in the user's sentence. Use [] if there are none.
         - Split into the smallest meaningful parts. The "text" of all parts joined together MUST spell the original word exactly, with no letters added or dropped.
@@ -209,34 +201,20 @@ export function useNormalAudioProcessor(
         - "meaning" of the whole word and of each part is a short English translation.
       `;
 
-      const gptResponse = await fetch(OPENAI_CHAT_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${openAiApiKey}`,
-        },
-        body: JSON.stringify({
-          model: process.env.EXPO_PUBLIC_GROQ_MODEL,
-          response_format: { type: 'json_object' },
-          messages: [
-            { role: 'system', content: systemPayload },
-            { role: 'user', content: transcribedText },
-          ],
-        }),
-      });
-
-      if (!gptResponse.ok) {
-        throw new Error('Groq analysis failed');
-      }
-
-      const gptData = await gptResponse.json();
-      const evaluationText = gptData.choices[0].message.content;
+      const evaluationText = await aiChat(
+        'analyze',
+        [
+          { role: 'system', content: systemPayload },
+          { role: 'user', content: transcribedText },
+        ],
+        { json: true },
+      );
 
       let evaluationJson = {
         explanation: '',
         tone: '',
         grammar: '',
-        quiz: '',
+        quiz: '' as unknown,
         articles: [] as GermanArticle[],
         compounds: [] as unknown[],
       };
@@ -253,16 +231,19 @@ export function useNormalAudioProcessor(
         explanation: evaluationJson.explanation || '',
         tone: evaluationJson.tone || '',
         grammar: evaluationJson.grammar || '',
-        quiz: evaluationJson.quiz || '',
+        // Older replies had a text quiz; the structured quiz is what the player uses.
+        quiz: typeof evaluationJson.quiz === 'string' ? evaluationJson.quiz : '',
+        quizQuestions: sanitizeQuiz(evaluationJson.quiz),
         articles: evaluationJson.articles || [],
         compounds: sanitizeCompounds(evaluationJson.compounds),
       });
       setStatus('Speak English or German');
     } catch (error) {
       clearInterval(interval);
-      console.log('Detailed Groq Audio Pipeline Failure:', error);
-      setStatus('Error — try again');
-      onTranscriptionError?.('Failed to process audio');
+      console.log('Audio pipeline failure:', error);
+      const message = error instanceof Error ? error.message : 'Failed to process audio';
+      setStatus(`Error: ${message}`);
+      onTranscriptionError?.(message);
     }
   }
 

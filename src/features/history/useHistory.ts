@@ -1,7 +1,7 @@
 import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
 
 import { selectHistory } from './historySelectors';
-import { deleteAnalysis, fetchHistory, saveAnalysis } from './historyThunks';
+import { deleteAnalysis, fetchHistory, saveAnalysis, updateQuizScore } from './historyThunks';
 import type { AnalysisDraft } from './historyTypes';
 
 /** unwrap() rejects with the thunk's string; callers expect an Error. */
@@ -26,6 +26,8 @@ export function useHistory() {
       if (status !== 'loading' && hasMore) dispatch(fetchHistory());
     },
     save: (draft: AnalysisDraft) => settle(dispatch(saveAnalysis(draft))),
+    saveQuizScore: (id: number, score: number, total: number) =>
+      settle(dispatch(updateQuizScore({ id, score, total }))),
     remove: (id: number) => settle(dispatch(deleteAnalysis(id))),
   };
 }

@@ -33,6 +33,18 @@ export const saveAnalysis = createAsyncThunk<SavedAnalysis, AnalysisDraft, Confi
   },
 );
 
+export const updateQuizScore = createAsyncThunk<
+  SavedAnalysis,
+  { id: number; score: number; total: number },
+  Config
+>('history/quizScore', async ({ id, score, total }, { rejectWithValue }) => {
+  try {
+    return await api.updateQuizScore(id, score, total);
+  } catch (err) {
+    return rejectWithValue(messageOf(err));
+  }
+});
+
 export const deleteAnalysis = createAsyncThunk<number, number, Config>(
   'history/delete',
   async (id, { rejectWithValue }) => {

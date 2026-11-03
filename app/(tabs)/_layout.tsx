@@ -4,6 +4,7 @@ import React from 'react';
 import type { ColorValue } from 'react-native';
 
 import { ProfileButton } from '@/src/features/profile';
+import { ScoreChip, useScoreSync } from '@/src/features/score';
 import { AppHeader } from '@/src/shared/ui/AppHeader';
 import { FloatingTabBar } from '@/src/shared/ui/FloatingTabBar';
 import { ThemeToggle } from '@/src/shared/ui/ThemeToggle';
@@ -20,6 +21,8 @@ const tabIcon = (active: IconName, inactive: IconName) => {
 };
 
 export default function TabLayout() {
+  useScoreSync();
+
   return (
     <Tabs
       tabBar={(props) => <FloatingTabBar {...props} />}
@@ -28,6 +31,7 @@ export default function TabLayout() {
           <AppHeader
             right={
               <>
+                <ScoreChip />
                 <ThemeToggle />
                 <ProfileButton />
               </>

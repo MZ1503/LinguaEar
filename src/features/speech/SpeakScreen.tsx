@@ -3,7 +3,9 @@ import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { RecentHistory, useHistory } from '@/src/features/history';
+import { useScore } from '@/src/features/score';
 import { CompoundCard } from '@/src/shared/german/CompoundCard';
+import { QuizPlayer } from '@/src/shared/german/QuizPlayer';
 
 import type { Palette } from '@/src/shared/theme/brand';
 import { useTheme } from '@/src/shared/theme/useTheme';
@@ -33,21 +35,39 @@ export function SpeakScreen() {
       : state === 'processing'
         ? status
         : status.startsWith('Error')
-          ? 'Something went wrong. Tap to try again.'
+          ? `${status.replace(/^Error:\s*/, '')} Tap to try again.`
           : 'Tap to speak';
 
-  const { explanation, tone, grammar, quiz, articles, compounds } = analysis;
+  const { explanation, tone, grammar, quiz, quizQuestions, articles, compounds } = analysis;
 
   const history = useHistory();
+  const { reportQuiz } = useScore();
+  const [reward, setReward] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   // Remember which transcript was saved, so a new recording offers Save again.
   const [savedFor, setSavedFor] = useState<string | null>(null);
   const saved = savedFor === heard;
+  // Result of the quiz for the current phrase, and the id once the phrase is saved.
+  const [quizResult, setQuizResult] = useState<{ phrase: string; score: number; total: number } | null>(null);
+  const [savedId, setSavedId] = useState<number | null>(null);
+  const result = quizResult?.phrase === heard ? quizResult : null;
 
   const save = async () => {
     setSaving(true);
     try {
-      await history.save({ transcript: heard, explanation, tone, grammar, quiz, articles, compounds });
+      const item = await history.save({
+        transcript: heard,
+        explanation,
+        tone,
+        grammar,
+        quiz,
+        articles,
+        compounds,
+        quiz_questions: quizQuestions,
+        quiz_score: result?.score ?? null,
+        quiz_total: result?.total ?? null,
+      });
+      setSavedId(item.id);
       setSavedFor(heard);
     } catch (err) {
       Alert.alert('Could not save', err instanceof Error ? err.message : 'Please try again.');
@@ -126,10 +146,32 @@ export function SpeakScreen() {
             </Section>
           )}
 
-          {!!quiz && (
-            <Section title="Quick quiz" icon="help-circle-outline" tint="#8B5CF6" collapsible>
-              <Text style={styles.body}>{quiz}</Text>
+          {quizQuestions.length > 0 ? (
+            <Section
+              title="Quick quiz"
+              icon="help-circle-outline"
+              tint="#8B5CF6"
+              collapsible
+              badge={result ? `${result.score}/${result.total}` : undefined}
+            >
+              <QuizPlayer
+                questions={quizQuestions}
+                reward={reward}
+                onComplete={(score, total) => {
+                  setQuizResult({ phrase: heard, score, total });
+                  setReward(null);
+                  reportQuiz(score, total, saved ? savedId : null).then(setReward);
+                  // Already saved: update the stored score; otherwise Save will include it.
+                  if (saved && savedId !== null) history.saveQuizScore(savedId, score, total).catch(() => {});
+                }}
+              />
             </Section>
+          ) : (
+            !!quiz && (
+              <Section title="Quick quiz" icon="help-circle-outline" tint="#8B5CF6" collapsible>
+                <Text style={styles.body}>{quiz}</Text>
+              </Section>
+            )
           )}
 
           <Pressable
