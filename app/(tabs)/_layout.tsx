@@ -3,6 +3,7 @@ import { Tabs } from 'expo-router';
 import React from 'react';
 import type { ColorValue } from 'react-native';
 
+import { useLoginNotice } from '@/src/features/billing';
 import { ProfileButton } from '@/src/features/profile';
 import { ScoreChip, useScoreSync } from '@/src/features/score';
 import { AppHeader } from '@/src/shared/ui/AppHeader';
@@ -22,6 +23,7 @@ const tabIcon = (active: IconName, inactive: IconName) => {
 
 export default function TabLayout() {
   useScoreSync();
+  useLoginNotice();
 
   return (
     <Tabs

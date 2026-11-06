@@ -4,7 +4,7 @@ import { useFocusEffect, useIsFocused } from 'expo-router';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useHistory } from '@/src/features/history';
 import type { Palette } from '@/src/shared/theme/brand';
@@ -14,6 +14,7 @@ import { CropEditor } from './CropEditor';
 import type { Rect } from './cropMath';
 import { scanImage } from './visionService';
 import type { Direction, ScannedPhrase } from './visionService';
+import { useAlert } from '@/src/shared/ui/AlertProvider';
 
 const DIRECTIONS: { id: Direction; label: string }[] = [
   { id: 'de-en', label: 'DE → EN' },
@@ -35,6 +36,7 @@ export function ScanScreen() {
   const camera = useRef<CameraView>(null);
   const busy = useRef(false);
   const history = useHistory();
+  const alert = useAlert();
   // Phrases saved from this screen, so the button shows as done; `pending` blocks double taps.
   const [savedPhrases, setSavedPhrases] = useState<Set<string>>(new Set());
   const [pending, setPending] = useState<Set<string>>(new Set());
@@ -154,7 +156,7 @@ export function ScanScreen() {
       await history.save({ transcript: p.original, translation: p.translation, source: 'scan' });
       setSavedPhrases((s) => new Set(s).add(key));
     } catch (err) {
-      Alert.alert('Could not save', err instanceof Error ? err.message : 'Please try again.');
+      alert.error('Could not save', err instanceof Error ? err.message : 'Please try again.');
     } finally {
       setPending((s) => {
         const next = new Set(s);

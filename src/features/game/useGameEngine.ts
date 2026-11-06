@@ -2,7 +2,8 @@ import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
 
 import { setStatus } from './gameActions';
 import { selectGame } from './gameSelectors';
-import { resetGame, setAiPrompt, setCurrentMode, setScore } from './gameSlice';
+import { resetGame, setAiPrompt, setLevel, setScore, startScenario } from './gameSlice';
+import type { GameLevel, GameScenario, LevelId } from './gameTypes';
 import { processUserSpeech } from './gameThunks';
 
 /** Game state lives in the Redux store, so it survives tab switches. */
@@ -12,7 +13,8 @@ export function useGameEngine() {
 
   return {
     ...game,
-    setCurrentMode: (mode: string | null) => dispatch(setCurrentMode(mode)),
+    startScenario: (scenario: GameScenario, level: GameLevel) => dispatch(startScenario({ scenario, level })),
+    setLevel: (level: LevelId) => dispatch(setLevel(level)),
     setStatus: (status: string) => dispatch(setStatus(status)),
     setScore: (score: number) => dispatch(setScore(score)),
     setAiPrompt: (prompt: string) => dispatch(setAiPrompt(prompt)),

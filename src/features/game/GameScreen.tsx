@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useMemo, useState } from 'react';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useAudioProcessor } from '@/src/features/speech';
@@ -9,50 +10,18 @@ import { MicButton } from '@/src/shared/ui/MicButton';
 import type { MicState } from '@/src/shared/ui/MicButton';
 import { Section } from '@/src/shared/ui/Section';
 
+import type { GameScenario, LevelId } from './gameTypes';
+import { readSavedLevel, saveLevel, useScenarios } from './useScenarios';
 import { useGameEngine } from './useGameEngine';
-
-type Level = {
-  id: string;
-  title: string;
-  description: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  tint: string;
-  opening: string;
-};
-
-const LEVELS: Level[] = [
-  {
-    id: 'immigration',
-    title: 'Immigration Office',
-    description: 'Ausländerbehörde: documents and appointments',
-    icon: 'business-outline',
-    tint: '#6366F1',
-    opening: 'Guten Tag. Zeigen Sie mir bitte Ihren Reisepass.',
-  },
-  {
-    id: 'cafe',
-    title: 'German Café',
-    description: 'Order food and drinks like a local',
-    icon: 'cafe-outline',
-    tint: '#F59E0B',
-    opening: 'Hallo! Was darf ich Ihnen heute bringen?',
-  },
-  {
-    id: 'taxi',
-    title: 'Taxi Ride',
-    description: 'Give directions and agree on the fare',
-    icon: 'car-outline',
-    tint: '#10B981',
-    opening: 'Moin! Wohin soll es denn gehen?',
-  },
-];
 
 const XP_GOAL = 100;
 
 export function GameScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const router = useRouter();
   const game = useGameEngine();
+  const { levels, scenarios } = useScenarios();
   const [isRecording, setIsRecording] = useState(false);
 
   const { startRecording, stopRecording, isProcessing } = useAudioProcessor(
@@ -65,15 +34,27 @@ export function GameScreen() {
     },
   );
 
-  const level = LEVELS.find((l) => l.id === game.currentMode);
+  useEffect(() => {
+    readSavedLevel().then((saved) => saved && game.setLevel(saved));
+    // Restore once on open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const level = game.scenario;
+  const current = levels.find((l) => l.id === game.level) ?? levels[0];
+  const groups = useMemo(() => {
+    const map = new Map<string, GameScenario[]>();
+    scenarios.forEach((sc) => map.set(sc.category, [...(map.get(sc.category) ?? []), sc]));
+    return [...map.entries()];
+  }, [scenarios]);
+  const pickLevel = (id: LevelId) => {
+    game.setLevel(id);
+    saveLevel(id);
+  };
   const state: MicState = isRecording ? 'recording' : isProcessing || game.processing ? 'processing' : 'idle';
   const xp = Math.min(game.score, XP_GOAL);
 
-  const start = (l: Level) => {
-    game.setCurrentMode(l.id);
-    game.setStatus(`${l.title} is ready.`);
-    game.setAiPrompt(l.opening);
-  };
+  const start = (sc: GameScenario) => current && game.startScenario(sc, current);
 
   async function toggleMicrophone() {
     if (!level) return;
@@ -111,28 +92,56 @@ export function GameScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>Practice scenarios</Text>
         <Text style={styles.subtitle}>
-          Pick a real-life situation and hold the conversation in German. You earn XP for every good answer.
+          Choose your level, then pick a real-life situation and talk it through in German. You earn XP for every good answer.
         </Text>
 
-        <View style={styles.levels}>
-          {LEVELS.map((l) => (
-            <Pressable
-              key={l.id}
-              onPress={() => start(l)}
-              style={({ pressed }) => [styles.levelCard, pressed && styles.pressed]}
-              accessibilityRole="button"
-            >
-              <View style={[styles.levelIcon, { backgroundColor: `${l.tint}22` }]}>
-                <Ionicons name={l.icon} size={24} color={l.tint} />
-              </View>
-              <View style={styles.levelText}>
-                <Text style={styles.levelTitle}>{l.title}</Text>
-                <Text style={styles.levelDesc}>{l.description}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={colors.muted} />
-            </Pressable>
-          ))}
+        <View style={styles.levelRow}>
+          {levels.map((l) => {
+            const on = l.id === game.level;
+            return (
+              <Pressable
+                key={l.id}
+                onPress={() => pickLevel(l.id)}
+                style={[styles.levelChip, on && styles.levelChipOn]}
+                accessibilityRole="button"
+              >
+                <Text style={[styles.levelChipText, on && { color: colors.onAccent }]}>{l.label}</Text>
+                <Text style={[styles.levelChipCefr, on && { color: colors.onAccent }]}>{l.cefr}</Text>
+              </Pressable>
+            );
+          })}
         </View>
+        {!!current && <Text style={styles.levelDescription}>{current.description}</Text>}
+
+        {groups.map(([category, items]) => (
+          <View key={category} style={styles.group}>
+            <Text style={styles.groupTitle}>{category}</Text>
+            <View style={styles.levels}>
+              {items.map((l) => (
+                <Pressable
+                  key={l.slug}
+                  onPress={() => start(l)}
+                  style={({ pressed }) => [styles.levelCard, pressed && styles.pressed]}
+                  accessibilityRole="button"
+                >
+                  <View style={[styles.levelIcon, { backgroundColor: `${l.tint}22` }]}>
+                    <Ionicons name={l.icon as keyof typeof Ionicons.glyphMap} size={24} color={l.tint} />
+                  </View>
+                  <View style={styles.levelText}>
+                    <Text style={styles.levelTitle}>{l.title}</Text>
+                    <Text style={styles.levelDesc}>{l.description}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={colors.muted} />
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        ))}
+
+        <Pressable onPress={() => router.push('/suggest-scenario')} style={styles.suggest} accessibilityRole="button">
+          <Ionicons name="add-circle-outline" size={20} color={colors.accent} />
+          <Text style={styles.suggestText}>Suggest a scenario</Text>
+        </Pressable>
       </ScrollView>
     );
   }
@@ -145,8 +154,10 @@ export function GameScreen() {
           <Text style={styles.backText}>Scenarios</Text>
         </Pressable>
         <View style={[styles.levelPill, { backgroundColor: `${level.tint}22` }]}>
-          <Ionicons name={level.icon} size={14} color={level.tint} />
-          <Text style={[styles.levelPillText, { color: level.tint }]}>{level.title}</Text>
+          <Ionicons name={level.icon as keyof typeof Ionicons.glyphMap} size={14} color={level.tint} />
+          <Text style={[styles.levelPillText, { color: level.tint }]}>
+            {level.title} · {current?.label}
+          </Text>
         </View>
       </View>
 
@@ -161,6 +172,17 @@ export function GameScreen() {
           <View style={[styles.fill, { width: `${(xp / XP_GOAL) * 100}%` }]} />
         </View>
       </View>
+
+      {level.key_phrases.length > 0 && (
+        <Section title="Useful phrases" icon="chatbubbles-outline" tint="#6366F1" collapsible>
+          {level.key_phrases.map((k) => (
+            <View key={k.de} style={styles.phrase}>
+              <Text style={styles.phraseDe}>{k.de}</Text>
+              <Text style={styles.phraseEn}>{k.en}</Text>
+            </View>
+          ))}
+        </Section>
+      )}
 
       <View style={styles.thread}>
         {!!game.aiPrompt && (
@@ -201,7 +223,39 @@ const createStyles = (c: Palette) =>
     content: { padding: 20, paddingBottom: 32 },
     title: { color: c.text, fontSize: 30, fontWeight: '800', letterSpacing: -0.5 },
     subtitle: { color: c.muted, fontSize: 15, lineHeight: 22, marginTop: 8 },
-    levels: { gap: 12, marginTop: 24 },
+    levelRow: { flexDirection: 'row', gap: 8, marginTop: 20 },
+    levelChip: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: 10,
+      borderRadius: 14,
+      backgroundColor: c.card,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.border,
+    },
+    levelChipOn: { backgroundColor: c.accent, borderColor: c.accent },
+    levelChipText: { color: c.text, fontSize: 14, fontWeight: '700' },
+    levelChipCefr: { color: c.muted, fontSize: 11, marginTop: 2 },
+    levelDescription: { color: c.muted, fontSize: 13, lineHeight: 19, marginTop: 10 },
+    group: { marginTop: 22 },
+    groupTitle: { color: c.muted, fontSize: 12, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
+    suggest: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      marginTop: 24,
+      paddingVertical: 14,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: c.accentBorder,
+      backgroundColor: c.accentSoft,
+    },
+    suggestText: { color: c.accent, fontSize: 15, fontWeight: '700' },
+    phrase: { paddingVertical: 6 },
+    phraseDe: { color: c.text, fontSize: 15, fontWeight: '600' },
+    phraseEn: { color: c.muted, fontSize: 13, marginTop: 1 },
+    levels: { gap: 12, marginTop: 10 },
     levelCard: {
       flexDirection: 'row',
       alignItems: 'center',

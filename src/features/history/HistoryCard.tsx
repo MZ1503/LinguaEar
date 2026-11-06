@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CompoundCard } from '@/src/shared/german/CompoundCard';
 import { useScore } from '@/src/features/score';
+import { GenderLegend, GenderText } from '@/src/shared/german/GenderText';
 import { QuizPlayer } from '@/src/shared/german/QuizPlayer';
 import type { Palette } from '@/src/shared/theme/brand';
 import { useTheme } from '@/src/shared/theme/useTheme';
@@ -36,10 +37,13 @@ export function HistoryCard({ item, open, onToggle, onDelete }: Props) {
       <Pressable onPress={onToggle} accessibilityRole="button" accessibilityState={{ expanded: open }}>
         <View style={styles.rowTop}>
           <View style={styles.dateRow}>
-            {item.source === 'scan' && <Ionicons name="camera-outline" size={14} color={colors.muted} />}
+            <Ionicons
+              name={item.source === 'scan' ? 'camera-outline' : 'mic-outline'}
+              size={14}
+              color={colors.muted}
+            />
             <Text style={styles.date}>
-              {item.source === 'scan' ? 'Scanned · ' : ''}
-              {formatDate(item.created_at)}
+              {item.source === 'scan' ? 'Scanned' : 'Spoken'} · {formatDate(item.created_at)}
             </Text>
           </View>
           <View style={styles.rowRight}>
@@ -54,7 +58,9 @@ export function HistoryCard({ item, open, onToggle, onDelete }: Props) {
             <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={colors.muted} />
           </View>
         </View>
-        <Text style={styles.transcript}>“{item.transcript}”</Text>
+        <GenderText style={styles.transcript} nouns={item.articles}>
+          {`“${item.transcript}”`}
+        </GenderText>
         {!!item.translation && <Text style={styles.translation}>{item.translation}</Text>}
         {!open && item.compounds.length > 0 && (
           <View style={styles.chips}>
@@ -69,6 +75,7 @@ export function HistoryCard({ item, open, onToggle, onDelete }: Props) {
 
       {open && (
         <View style={styles.detail}>
+          {item.articles.length > 0 && <GenderLegend />}
           {!!item.explanation && <Text style={styles.body}>{item.explanation}</Text>}
           {item.compounds.map((c) => (
             <CompoundCard key={c.word} compound={c} />

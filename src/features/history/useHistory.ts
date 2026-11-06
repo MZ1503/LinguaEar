@@ -1,6 +1,9 @@
 import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
 
 import { selectHistory } from './historySelectors';
+import { DEFAULT_FILTER } from './historyFilter';
+import type { HistoryFilter } from './historyFilter';
+import { setFilter } from './historySlice';
 import { deleteAnalysis, fetchHistory, saveAnalysis, updateQuizScore } from './historyThunks';
 import type { AnalysisDraft } from './historyTypes';
 
@@ -15,10 +18,20 @@ async function settle<T>(action: { unwrap: () => Promise<T> }): Promise<T> {
 
 export function useHistory() {
   const dispatch = useAppDispatch();
-  const { items, status, hasMore } = useAppSelector(selectHistory);
+  const { items, status, hasMore, filter } = useAppSelector(selectHistory);
 
   return {
     items,
+    filter,
+    /** Changes part of the filter and reloads the list from the first page. */
+    setFilter: (change: Partial<HistoryFilter>) => {
+      dispatch(setFilter(change));
+      dispatch(fetchHistory({ reset: true }));
+    },
+    clearFilter: () => {
+      dispatch(setFilter(DEFAULT_FILTER));
+      dispatch(fetchHistory({ reset: true }));
+    },
     status,
     hasMore,
     refresh: () => dispatch(fetchHistory({ reset: true })),

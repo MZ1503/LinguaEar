@@ -1,3 +1,4 @@
+import type { HistoryFilter } from './historyFilter';
 import type { Compound } from '@/src/shared/german/compounds';
 import type { QuizQuestion } from '@/src/shared/german/quiz';
 
@@ -34,6 +35,7 @@ export type SavedAnalysis = Required<Omit<AnalysisDraft, 'quiz_score' | 'quiz_to
 
 export type HistoryState = {
   items: SavedAnalysis[];
+  filter: HistoryFilter;
   status: 'idle' | 'loading' | 'failed';
   /** False once a page comes back shorter than the page size. */
   hasMore: boolean;

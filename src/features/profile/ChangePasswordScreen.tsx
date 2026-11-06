@@ -2,7 +2,6 @@ import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -15,11 +14,13 @@ import { useAuth } from '@/src/features/auth';
 import type { Palette } from '@/src/shared/theme/brand';
 import { useTheme } from '@/src/shared/theme/useTheme';
 import { TextField } from '@/src/shared/ui/TextField';
+import { useAlert } from '@/src/shared/ui/AlertProvider';
 
 type Errors = { current?: string; next?: string; confirm?: string };
 
 export function ChangePasswordScreen() {
   const router = useRouter();
+  const alert = useAlert();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { changePassword } = useAuth();
@@ -49,9 +50,7 @@ export function ChangePasswordScreen() {
     setBusy(true);
     try {
       await changePassword(current, next);
-      Alert.alert('Password changed', 'Your other devices have been signed out.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      alert.success('Password changed', 'Your other devices have been signed out.', () => router.back());
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Something went wrong.');
     } finally {

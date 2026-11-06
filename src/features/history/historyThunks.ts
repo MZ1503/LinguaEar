@@ -1,6 +1,7 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 
 import * as api from './historyService';
+import type { HistoryFilter } from './historyFilter';
 import type { AnalysisDraft, HistoryRootState, SavedAnalysis } from './historyTypes';
 
 const messageOf = (err: unknown) => (err instanceof Error ? err.message : 'Something went wrong.');
@@ -9,14 +10,15 @@ type Config = { rejectValue: string; state: HistoryRootState };
 
 /** `reset` reloads from the first page; otherwise the next page is appended. */
 export const fetchHistory = createAsyncThunk<
-  { items: SavedAnalysis[]; reset: boolean },
+  { items: SavedAnalysis[]; reset: boolean; filter: HistoryFilter },
   { reset?: boolean } | undefined,
   Config
 >('history/fetch', async (arg, { getState, rejectWithValue }) => {
   const reset = !!arg?.reset;
   try {
-    const offset = reset ? 0 : getState().history.items.length;
-    return { items: await api.listAnalyses(offset), reset };
+    const { items, filter } = getState().history;
+    const offset = reset ? 0 : items.length;
+    return { items: await api.listAnalyses(offset, filter), reset, filter };
   } catch (err) {
     return rejectWithValue(messageOf(err));
   }

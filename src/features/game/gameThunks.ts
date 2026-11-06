@@ -5,14 +5,14 @@ import { aiChat } from '@/src/features/ai';
 
 import { parseGameResponse } from './gameParser';
 import type { GameRootState } from './gameTypes';
-import { GERMAN_TEACHER_PROMPTS, LOADING_MESSAGES, OUTPUT_TOKENS_INSTRUCTION } from './immigrationData';
+import { LOADING_MESSAGES, OUTPUT_TOKENS_INSTRUCTION } from './immigrationData';
 import { setStatus, speechHeard } from './gameActions';
 
 export const processUserSpeech = createAsyncThunk<string, string, { state: GameRootState }>(
   'game/processUserSpeech',
   async (text, { dispatch, getState }) => {
-    const { currentMode } = getState().game;
-    if (!currentMode) throw new Error('No level selected');
+    const { scenario, levelRules, aiPrompt } = getState().game;
+    if (!scenario) throw new Error('No scenario selected');
 
     dispatch(speechHeard(text));
 
@@ -22,10 +22,14 @@ export const processUserSpeech = createAsyncThunk<string, string, { state: GameR
     }, 1200);
 
     try {
-      const systemPayload = `${GERMAN_TEACHER_PROMPTS[currentMode]}\n\n${OUTPUT_TOKENS_INSTRUCTION}`;
+      const systemPayload = `${scenario.persona}\n\n${levelRules}\n\n${OUTPUT_TOKENS_INSTRUCTION}`;
+      // The model keeps no memory between turns, so it is told what it last said and how the player answered.
+      const turn = aiPrompt
+        ? `You just said: "${aiPrompt}"\nThe player answered: "${text}"`
+        : `The player said: "${text}"`;
       const reply = await aiChat('game', [
         { role: 'system', content: systemPayload },
-        { role: 'user', content: `I just said: ${text}` },
+        { role: 'user', content: turn },
       ]);
       // Points earned this turn go to the server, where the user's total lives.
       const { scoreDelta } = parseGameResponse(reply);

@@ -2,7 +2,6 @@ import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -15,11 +14,13 @@ import { useAuth } from '@/src/features/auth';
 import type { Palette } from '@/src/shared/theme/brand';
 import { useTheme } from '@/src/shared/theme/useTheme';
 import { TextField } from '@/src/shared/ui/TextField';
+import { useAlert } from '@/src/shared/ui/AlertProvider';
 
 const USERNAME_RE = /^[A-Za-z0-9_.]{3,30}$/;
 
 export function EditProfileScreen() {
   const router = useRouter();
+  const alert = useAlert();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { user, saveProfile } = useAuth();
@@ -49,7 +50,7 @@ export function EditProfileScreen() {
     setBusy(true);
     try {
       await saveProfile({ username, fullName, bio });
-      Alert.alert('Profile updated', undefined, [{ text: 'OK', onPress: () => router.back() }]);
+      alert.success('Profile updated', 'Your changes have been saved.', () => router.back());
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Something went wrong.');
     } finally {

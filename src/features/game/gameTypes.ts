@@ -1,7 +1,38 @@
 export type Breakdown = { word: string; meaning: string };
 
+export type LevelId = 'beginner' | 'intermediate' | 'professional';
+
+export type GameLevel = {
+  id: LevelId;
+  label: string;
+  cefr: string;
+  description: string;
+  /** Added to the AI's instructions so it talks and judges at this level. */
+  rules: string;
+};
+
+export type KeyPhrase = { de: string; en: string };
+
+/** A role-play situation. These come from the backend, so new ones appear without an app update. */
+export type GameScenario = {
+  id: number;
+  slug: string;
+  title: string;
+  description: string;
+  category: string;
+  /** An Ionicons name. */
+  icon: string;
+  tint: string;
+  persona: string;
+  openings: Record<LevelId, string>;
+  key_phrases: KeyPhrase[];
+  sort_order: number;
+};
+
 export type GameState = {
-  currentMode: string | null;
+  scenario: GameScenario | null;
+  level: LevelId;
+  levelRules: string;
   status: string;
   score: number;
   heard: string;

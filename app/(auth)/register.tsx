@@ -1,5 +1,5 @@
-import { Link } from 'expo-router';
-import React, { useState } from 'react';
+import { Link } from "expo-router";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -10,40 +10,46 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { useAuth } from '@/src/features/auth';
-import { authColors, authStyles as s } from '@/src/features/auth/authStyles';
+import { useAuth } from "@/src/features/auth";
+import { authColors, authStyles as s } from "@/src/features/auth/authStyles";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const USERNAME_RE = /^[A-Za-z0-9_.]{3,30}$/;
 
-type Errors = { name?: string; email?: string; password?: string; confirm?: string };
+type Errors = {
+  name?: string;
+  email?: string;
+  password?: string;
+  confirm?: string;
+};
 
 export default function Register() {
   const { register } = useAuth();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [errors, setErrors] = useState<Errors>({});
-  const [formError, setFormError] = useState('');
+  const [formError, setFormError] = useState("");
   const [busy, setBusy] = useState(false);
 
   const validate = (): Errors => {
     const e: Errors = {};
-    if (!USERNAME_RE.test(name.trim())) e.name = '3-30 characters: letters, numbers, _ or .';
-    if (!EMAIL_RE.test(email.trim())) e.email = 'Enter a valid email address.';
-    if (password.length < 8) e.password = 'Use at least 8 characters.';
-    if (confirm !== password) e.confirm = 'Passwords do not match.';
+    if (!USERNAME_RE.test(name.trim()))
+      e.name = "3-30 characters: letters, numbers, _ or .";
+    if (!EMAIL_RE.test(email.trim())) e.email = "Enter a valid email address.";
+    if (password.length < 8) e.password = "Use at least 8 characters.";
+    if (confirm !== password) e.confirm = "Passwords do not match.";
     return e;
   };
 
   const submit = async () => {
     const e = validate();
     setErrors(e);
-    setFormError('');
+    setFormError("");
     if (Object.keys(e).length) return;
 
     setBusy(true);
@@ -51,7 +57,9 @@ export default function Register() {
       await register(name, email, password);
       // The root layout's route guard sends new users to onboarding.
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Something went wrong.');
+      setFormError(
+        err instanceof Error ? err.message : "Something went wrong.",
+      );
       setBusy(false);
     }
   };
@@ -78,35 +86,69 @@ export default function Register() {
 
   return (
     <SafeAreaView style={s.screen}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
-          <Image source={require('@/assets/images/ear-logo.png')} style={s.logo} resizeMode="contain" />
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={s.content}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Image
+            source={require("@/assets/images/ear-logo.png")}
+            style={s.logo}
+            resizeMode="contain"
+          />
           <Text style={s.title}>Create your account</Text>
           <Text style={s.subtitle}>Train your ear for real conversations</Text>
 
-          {field('Username', name, setName, 'name', { placeholder: 'your_name', autoComplete: 'username', autoCapitalize: 'none' })}
-          {field('Email', email, setEmail, 'email', {
-            placeholder: 'you@example.com',
-            autoCapitalize: 'none',
-            autoComplete: 'email',
-            keyboardType: 'email-address',
+          {field("Username", name, setName, "name", {
+            placeholder: "John Doe",
+            autoComplete: "username",
+            autoCapitalize: "none",
           })}
-          {field('Password', password, setPassword, 'password', {
-            placeholder: 'At least 8 characters',
+          {field("Email", email, setEmail, "email", {
+            placeholder: "johndoe@example.com",
+            autoCapitalize: "none",
+            autoComplete: "email",
+            keyboardType: "email-address",
+          })}
+          {field("Password", password, setPassword, "password", {
+            placeholder: "At least 8 characters",
             secureTextEntry: true,
-            autoComplete: 'new-password',
+            autoComplete: "new-password",
           })}
-          {field('Confirm password', confirm, setConfirm, 'confirm', {
-            placeholder: 'Repeat your password',
+          {field("Confirm password", confirm, setConfirm, "confirm", {
+            placeholder: "Repeat your password",
             secureTextEntry: true,
             onSubmitEditing: submit,
           })}
 
           {!!formError && <Text style={s.formError}>{formError}</Text>}
 
-          <TouchableOpacity style={[s.button, busy && s.buttonDisabled]} onPress={submit} disabled={busy}>
-            {busy ? <ActivityIndicator color={authColors.bg} /> : <Text style={s.buttonText}>Sign up</Text>}
+          <TouchableOpacity
+            style={[s.button, busy && s.buttonDisabled]}
+            onPress={submit}
+            disabled={busy}
+          >
+            {busy ? (
+              <ActivityIndicator color={authColors.bg} />
+            ) : (
+              <Text style={s.buttonText}>Sign up</Text>
+            )}
           </TouchableOpacity>
+
+          <Text style={{ color: authColors.muted, fontSize: 12, lineHeight: 18, textAlign: 'center' }}>
+            By signing up you agree to our{' '}
+            <Link href="/terms" style={s.footerLink}>
+              Terms
+            </Link>{' '}
+            and{' '}
+            <Link href="/privacy" style={s.footerLink}>
+              Privacy Policy
+            </Link>
+            .
+          </Text>
 
           <View style={s.footer}>
             <Text style={s.footerText}>Already have an account? </Text>

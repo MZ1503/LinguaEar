@@ -1,3 +1,5 @@
+import { File } from 'expo-file-system';
+
 import { authedFetch } from '@/src/features/auth';
 
 export type AiKind = 'analyze' | 'game' | 'scan';
@@ -15,6 +17,7 @@ export class AiError extends Error {
 }
 
 const RETRIES = 2;
+const AI_TIMEOUT_MS = 60_000;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function toError(res: Response): Promise<AiError> {
@@ -33,10 +36,12 @@ async function toError(res: Response): Promise<AiError> {
 
 /** Sends a request; a failing AI provider (502) is retried, but the user's own limits never are. */
 async function send(path: string, init: RequestInit): Promise<Response> {
-  let res = await authedFetch(path, init);
+  // AI answers and uploads can legitimately take a while.
+  const options = { ...init, timeoutMs: AI_TIMEOUT_MS };
+  let res = await authedFetch(path, options);
   for (let attempt = 0; attempt < RETRIES && res.status === 502; attempt++) {
     await sleep(700 * (attempt + 1));
-    res = await authedFetch(path, init);
+    res = await authedFetch(path, options);
   }
   if (!res.ok) throw await toError(res);
   return res;
@@ -66,12 +71,21 @@ export async function aiChat(
 
 /** Turns a recording into text. `language` pins Whisper to German or English; leave it out to auto-detect. */
 export async function aiTranscribe(uri: string, language?: 'de' | 'en'): Promise<string> {
-  const extension = uri.split('.').pop() || 'm4a';
   const form = new FormData();
-  form.append('file', { uri, type: `audio/${extension}`, name: `recording.${extension}` } as any);
+  // Expo's fetch only understands text, Blobs and objects with bytes(). The old React Native style
+  // { uri, type, name } object is rejected ("Unsupported FormDataPart"), so the recording is passed as a File.
+  // Its name (recording-....m4a) is sent as the filename, which is how the server tells the audio format.
+  form.append('file', new File(uri) as unknown as Blob);
   if (language) form.append('language', language);
 
-  const res = await send('/ai/transcribe', { method: 'POST', body: form });
+  let res: Response;
+  try {
+    res = await send('/ai/transcribe', { method: 'POST', body: form });
+  } catch (err) {
+    // The Metro terminal then shows which file was being sent, which is what a failed upload hinges on.
+    console.warn('Recording upload failed. File:', uri, '| error:', err);
+    throw err;
+  }
   const data = await res.json();
   return typeof data?.text === 'string' ? data.text : '';
 }

@@ -1,7 +1,16 @@
 import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
 
 import { selectAuthLoading, selectUser } from './authSelectors';
-import { changePassword, completeOnboarding, login, logout, register, saveProfile } from './authThunks';
+import {
+  changePassword,
+  completeOnboarding,
+  login,
+  logout,
+  register,
+  saveProfile,
+  verifyEmail,
+} from './authThunks';
+import { sendVerificationCode } from './authService';
 import type { ProfileChanges } from './authService';
 
 /** unwrap() rejects with the thunk's rejectValue (a string); screens expect an Error. */
@@ -26,6 +35,8 @@ export function useAuth() {
       settle(dispatch(register({ name, email, password }))),
     login: (email: string, password: string, rememberMe?: boolean) =>
       settle(dispatch(login({ email, password, rememberMe }))),
+    verifyEmail: (code: string) => settle(dispatch(verifyEmail(code))),
+    sendVerificationCode,
     saveProfile: (changes: ProfileChanges) => settle(dispatch(saveProfile(changes))),
     changePassword: (currentPassword: string, newPassword: string) =>
       settle(dispatch(changePassword({ currentPassword, newPassword }))),

@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react';
-import { Alert, Platform } from 'react-native';
 import {
   useAudioRecorder,
   RecordingPresets,
@@ -12,6 +11,7 @@ import { sanitizeCompounds } from '@/src/shared/german/compounds';
 import type { Compound } from '@/src/shared/german/compounds';
 import { sanitizeQuiz } from '@/src/shared/german/quiz';
 import type { QuizQuestion } from '@/src/shared/german/quiz';
+import { useAlert } from '@/src/shared/ui/AlertProvider';
 
 interface GermanArticle {
   word: string;
@@ -29,6 +29,7 @@ export function useNormalAudioProcessor(
   onTranscriptionSuccess?: (text: string) => void,
   onTranscriptionError?: (err: string) => void,
 ) {
+  const alert = useAlert();
   const [status, setStatus] = useState('Speak English or German');
   const [isRecording, setIsRecording] = useState(false);
   const [heard, setHeard] = useState('');
@@ -95,7 +96,10 @@ export function useNormalAudioProcessor(
       }, 10000);
     } catch (err) {
       console.error('Start recording failed:', err);
-      Alert.alert('Error', 'Microphone access needed');
+      alert.error(
+        'Microphone needed',
+        'Allow microphone access in your phone settings to record your voice.',
+      );
       setStatus('Speak English or German');
       setIsRecording(false);
       onTranscriptionError?.('Microphone access denied');
@@ -141,7 +145,9 @@ export function useNormalAudioProcessor(
 
     try {
       // The backend holds the API key and enforces the daily limits.
-      const transcribedText = await aiTranscribe(Platform.OS === 'ios' ? uri.replace('file://', '') : uri);
+      // The recording's address is passed on exactly as given. On iOS it must keep its file:// start, or the
+      // upload fails before it leaves the phone.
+      const transcribedText = await aiTranscribe(uri);
       if (!transcribedText) {
         throw new Error('No speech was detected. Try again.');
       }

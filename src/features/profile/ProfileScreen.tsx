@@ -1,15 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useMemo, useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useMemo } from 'react';
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { useAuth } from '@/src/features/auth';
+import { SubscriptionCard, usePlanLabel } from '@/src/features/billing';
 import { useScore } from '@/src/features/score';
 import { UsageCard } from '@/src/features/usage';
 import type { Palette } from '@/src/shared/theme/brand';
 import { useTheme } from '@/src/shared/theme/useTheme';
-
-import { PrivacyPolicy } from './PrivacyPolicy';
+import { useAlert } from '@/src/shared/ui/AlertProvider';
 
 const capitalize = (s?: string) => (s ? s[0].toUpperCase() + s.slice(1) : '—');
 
@@ -17,15 +17,22 @@ export function ProfileScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { user, logout } = useAuth();
+  const alert = useAlert();
   const { summary } = useScore();
+  const plan = usePlanLabel();
   const router = useRouter();
-  const [showPrivacy, setShowPrivacy] = useState(false);
 
   const confirmLogout = () =>
-    Alert.alert('Log out', 'Do you want to log out of LinguaEar?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Log out', style: 'destructive', onPress: () => logout() },
-    ]);
+    alert.show({
+      type: 'question',
+      icon: 'log-out',
+      title: 'Log out?',
+      message: 'You will need to sign in again to use LinguaEar.',
+      buttons: [
+        { text: 'Log out', onPress: () => logout() },
+        { text: 'Stay signed in', style: 'cancel' },
+      ],
+    });
 
   if (!user) return null;
 
@@ -49,6 +56,18 @@ export function ProfileScreen() {
           <Text style={styles.email}>
             @{user.name} · {user.email}
           </Text>
+          {plan && (
+            <TouchableOpacity
+              style={[styles.planBadge, plan.warn && styles.planBadgeWarn]}
+              onPress={() => router.push('/paywall')}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`Plan: ${plan.text}`}
+            >
+              <Ionicons name={plan.icon} size={14} color={plan.warn ? colors.error : colors.accent} />
+              <Text style={[styles.planText, plan.warn && { color: colors.error }]}>{plan.text}</Text>
+            </TouchableOpacity>
+          )}
           {!!user.bio && <Text style={styles.bio}>{user.bio}</Text>}
         </View>
 
@@ -83,47 +102,22 @@ export function ProfileScreen() {
           </View>
         )}
 
+        <Text style={styles.section}>Subscription</Text>
+        <SubscriptionCard />
+
         <Text style={styles.section}>Today&apos;s limits</Text>
         <UsageCard />
 
-        <Text style={styles.section}>Account</Text>
         <View style={styles.card}>
-          <TouchableOpacity
-            style={styles.row}
-            onPress={() => router.push('/edit-profile')}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="person-outline" size={22} color={colors.accent} />
-            <Text style={styles.rowText}>Edit profile</Text>
+          <TouchableOpacity style={styles.row} onPress={() => router.push('/settings')} activeOpacity={0.7}>
+            <Ionicons name="settings-outline" size={22} color={colors.accent} />
+            <Text style={styles.rowText}>Settings</Text>
             <Ionicons name="chevron-forward" size={18} color={colors.muted} />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.row, styles.rowDivider]}
-            onPress={() => router.push('/change-password')}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="lock-closed-outline" size={22} color={colors.accent} />
-            <Text style={styles.rowText}>Change password</Text>
-            <Ionicons name="chevron-forward" size={18} color={colors.muted} />
-          </TouchableOpacity>
-        </View>
-
-        <Text style={styles.section}>Legal</Text>
-        <View style={styles.card}>
-          <TouchableOpacity style={styles.row} onPress={() => setShowPrivacy((v) => !v)} activeOpacity={0.7}>
-            <Ionicons name="shield-checkmark-outline" size={22} color={colors.accent} />
-            <Text style={styles.rowText}>Privacy & Impressum</Text>
-            <Ionicons name={showPrivacy ? 'chevron-up' : 'chevron-down'} size={18} color={colors.muted} />
-          </TouchableOpacity>
-          {showPrivacy && (
-            <View style={styles.policy}>
-              <PrivacyPolicy />
-            </View>
-          )}
         </View>
 
         <TouchableOpacity style={styles.logout} onPress={confirmLogout} activeOpacity={0.8}>
-          <Ionicons name="log-out-outline" size={20} color={colors.error} />
+          <Ionicons name="log-out-outline" size={20} color={colors.accent} />
           <Text style={styles.logoutText}>Log out</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -239,6 +233,18 @@ const createStyles = (c: Palette) =>
     pillText: { color: c.accent, fontSize: 12, fontWeight: '700' },
     today: { color: c.muted, fontSize: 12, fontWeight: '600' },
     rowDivider: { borderTopWidth: 1, borderTopColor: c.border },
+    planBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 12,
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+      borderRadius: 999,
+      backgroundColor: c.accentSoft,
+    },
+    planBadgeWarn: { backgroundColor: 'rgba(239, 68, 68, 0.14)' },
+    planText: { color: c.accent, fontSize: 13, fontWeight: '800' },
     email: { color: c.muted, fontSize: 14, marginTop: 4 },
     stats: { flexDirection: 'row', gap: 10, marginBottom: 28 },
     stat: {
@@ -281,7 +287,7 @@ const createStyles = (c: Palette) =>
       paddingVertical: 14,
       borderRadius: 16,
       borderWidth: 1,
-      borderColor: c.error,
+      borderColor: c.accent,
     },
-    logoutText: { color: c.error, fontSize: 16, fontWeight: '600' },
+    logoutText: { color: c.accent, fontSize: 16, fontWeight: '600' },
   });

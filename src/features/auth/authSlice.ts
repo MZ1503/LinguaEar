@@ -1,6 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
 
-import { completeOnboarding, hydrate, login, logout, register, saveProfile } from './authThunks';
+import { completeOnboarding, hydrate, login, logout, register, saveProfile, verifyEmail } from './authThunks';
 import type { AuthState } from './authTypes';
 
 const initialState: AuthState = { user: null, loading: true };
@@ -23,6 +23,9 @@ const authSlice = createSlice({
       })
       .addCase(completeOnboarding.fulfilled, (state, { payload }) => {
         if (payload) state.user = payload;
+      })
+      .addCase(verifyEmail.fulfilled, (state, { payload }) => {
+        state.user = payload;
       })
       .addCase(saveProfile.fulfilled, (state, { payload }) => {
         state.user = payload;

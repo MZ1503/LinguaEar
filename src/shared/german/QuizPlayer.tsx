@@ -6,6 +6,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Palette } from '@/src/shared/theme/brand';
 import { useTheme } from '@/src/shared/theme/useTheme';
 
+import { GENDER_COLORS, GENDER_UNDERLINE, parseGender } from './gender';
 import type { QuizQuestion } from './quiz';
 
 type Props = {
@@ -123,6 +124,7 @@ export function QuizPlayer({ questions, onComplete, previous, reward }: Props) {
       <View style={styles.options}>
         {question.options.map((option, i) => {
           const isAnswer = i === question.answer_index;
+          const gender = parseGender(option);
           const revealed = picked !== null;
           const wrongPick = revealed && picked === i && !isAnswer;
           return (
@@ -137,7 +139,20 @@ export function QuizPlayer({ questions, onComplete, previous, reward }: Props) {
                 wrongPick && styles.optionWrong,
               ]}
             >
-              <Text style={[styles.optionText, revealed && !isAnswer && !wrongPick && { opacity: 0.55 }]}>
+              <Text
+                style={[
+                  styles.optionText,
+                  revealed && !isAnswer && !wrongPick && { opacity: 0.55 },
+                  // Article answers (der / die / das) wear their gender colour, so the colour becomes familiar.
+                  gender && {
+                    color: GENDER_COLORS[gender],
+                    fontWeight: '800',
+                    textDecorationLine: 'underline',
+                    textDecorationStyle: GENDER_UNDERLINE[gender],
+                    textDecorationColor: GENDER_COLORS[gender],
+                  },
+                ]}
+              >
                 {option}
               </Text>
               {revealed && isAnswer && <Ionicons name="checkmark-circle" size={20} color={GREEN} />}

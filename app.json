@@ -8,7 +8,11 @@
     "scheme": "linguaear",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.linguaear.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -17,7 +21,14 @@
       },
       "predictiveBackGestureEnabled": false,
       "versionCode": 6,
-      "package": "com.linguaear.app"
+      "package": "com.linguaear.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ]
     },
     "web": {
       "output": "static",
@@ -60,9 +71,13 @@
       "reactCompiler": true
     },
     "extra": {
-      "router": {},
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
       "eas": {
-        "projectId": "350e8d56-46a6-4999-b8bf-7a3fe957e649"
+        "projectId": "89e28438-3591-42d8-9e63-badeaf2277f7"
       }
     },
     "runtimeVersion": {
@@ -70,6 +85,7 @@
     },
     "updates": {
       "url": "https://u.expo.dev/350e8d56-46a6-4999-b8bf-7a3fe957e649"
-    }
+    },
+    "owner": "fakeananda"
   }
 }

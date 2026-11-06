@@ -2,17 +2,26 @@ import { createSlice } from '@reduxjs/toolkit';
 
 import { logout } from '@/src/features/auth';
 
+import { DEFAULT_FILTER, matchesFilter, sameFilter } from './historyFilter';
+import type { HistoryFilter } from './historyFilter';
 import { PAGE_SIZE } from './historyService';
 import { deleteAnalysis, fetchHistory, saveAnalysis, updateQuizScore } from './historyThunks';
 import type { HistoryState } from './historyTypes';
+import type { PayloadAction } from '@reduxjs/toolkit';
 
-const initialState: HistoryState = { items: [], status: 'idle', hasMore: true };
+const initialState: HistoryState = { items: [], filter: DEFAULT_FILTER, status: 'idle', hasMore: true };
 
 const historySlice = createSlice({
   name: 'history',
   initialState,
   reducers: {
     clearHistory: () => initialState,
+    /** Changes the filter and empties the list; the caller then reloads from the first page. */
+    setFilter: (state, { payload }: PayloadAction<Partial<HistoryFilter>>) => {
+      state.filter = { ...state.filter, ...payload };
+      state.items = [];
+      state.hasMore = true;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -20,6 +29,8 @@ const historySlice = createSlice({
         state.status = 'loading';
       })
       .addCase(fetchHistory.fulfilled, (state, { payload }) => {
+        // An answer for a filter that has since been changed is stale; the newer request will fill the list.
+        if (!sameFilter(payload.filter, state.filter)) return;
         state.items = payload.reset ? payload.items : [...state.items, ...payload.items];
         state.hasMore = payload.items.length === PAGE_SIZE;
         state.status = 'idle';
@@ -28,7 +39,8 @@ const historySlice = createSlice({
         state.status = 'failed';
       })
       .addCase(saveAnalysis.fulfilled, (state, { payload }) => {
-        state.items.unshift(payload);
+        // A new phrase only joins the list if it fits the filter being shown.
+        if (matchesFilter(payload, state.filter)) state.items.unshift(payload);
       })
       .addCase(updateQuizScore.fulfilled, (state, { payload }) => {
         const i = state.items.findIndex((item) => item.id === payload.id);
@@ -42,5 +54,5 @@ const historySlice = createSlice({
   },
 });
 
-export const { clearHistory } = historySlice.actions;
+export const { clearHistory, setFilter } = historySlice.actions;
 export default historySlice.reducer;

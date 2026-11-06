@@ -1,6 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit';
 
 import { authReducer } from '@/src/features/auth';
+import { billingReducer } from '@/src/features/billing';
 import { gameReducer } from '@/src/features/game';
 import { historyReducer } from '@/src/features/history';
 import { scoreReducer } from '@/src/features/score';
@@ -10,6 +11,7 @@ import themeReducer from '@/src/shared/theme/themeSlice';
 export const store = configureStore({
   reducer: {
     auth: authReducer,
+    billing: billingReducer,
     game: gameReducer,
     history: historyReducer,
     score: scoreReducer,

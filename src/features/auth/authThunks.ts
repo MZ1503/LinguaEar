@@ -63,6 +63,17 @@ export const changePassword = createAsyncThunk<
   }
 });
 
+export const verifyEmail = createAsyncThunk<User, string, Config>(
+  'auth/verifyEmail',
+  async (code, { rejectWithValue }) => {
+    try {
+      return await api.verifyEmail(code);
+    } catch (err) {
+      return rejectWithValue(messageOf(err));
+    }
+  },
+);
+
 export const logout = createAsyncThunk('auth/logout', () => api.logout());
 
 export const completeOnboarding = createAsyncThunk<

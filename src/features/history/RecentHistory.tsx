@@ -7,6 +7,8 @@ import type { Palette } from '@/src/shared/theme/brand';
 import { useTheme } from '@/src/shared/theme/useTheme';
 
 import { HistoryCard } from './HistoryCard';
+import { HistoryFilterButton } from './HistoryFilterButton';
+import { isFiltered } from './historyFilter';
 import { useDeleteConfirm } from './useDeleteConfirm';
 import { useHistory } from './useHistory';
 
@@ -17,7 +19,7 @@ export function RecentHistory() {
   const router = useRouter();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { items, status, hasMore, refresh } = useHistory();
+  const { items, status, hasMore, refresh, filter } = useHistory();
   const confirmDelete = useDeleteConfirm();
   const [openId, setOpenId] = useState<number | null>(null);
 
@@ -36,11 +38,14 @@ export function RecentHistory() {
           <Ionicons name="time-outline" size={18} color={colors.muted} />
           <Text style={styles.title}>History</Text>
         </View>
-        {(items.length > RECENT_COUNT || hasMore) && (
-          <Pressable onPress={() => router.push('/history')} hitSlop={8} accessibilityRole="button">
-            <Text style={styles.viewAll}>View all</Text>
-          </Pressable>
-        )}
+        <View style={styles.headerActions}>
+          {(items.length > RECENT_COUNT || hasMore) && (
+            <Pressable onPress={() => router.push('/history')} hitSlop={8} accessibilityRole="button">
+              <Text style={styles.viewAll}>View all</Text>
+            </Pressable>
+          )}
+          <HistoryFilterButton />
+        </View>
       </View>
 
       {recent.length === 0 ? (
@@ -48,7 +53,11 @@ export function RecentHistory() {
           <ActivityIndicator color={colors.accent} style={styles.loading} />
         ) : (
           <Text style={styles.empty}>
-            {status === 'failed' ? 'Could not load your history.' : 'Phrases you save will appear here.'}
+            {status === 'failed'
+              ? 'Could not load your history.'
+              : isFiltered(filter)
+                ? 'No phrases match these filters.'
+                : 'Phrases you save will appear here.'}
           </Text>
         )
       ) : (
@@ -72,6 +81,7 @@ const createStyles = (c: Palette) =>
   StyleSheet.create({
     wrap: { marginTop: 28 },
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+    headerActions: { flexDirection: 'row', alignItems: 'center', gap: 14 },
     titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     title: { color: c.muted, fontSize: 12, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
     viewAll: { color: c.accent, fontSize: 13, fontWeight: '600' },

@@ -1,5 +1,7 @@
 import { authedFetch } from '@/src/features/auth';
 
+import { sinceOf } from './historyFilter';
+import type { HistoryFilter } from './historyFilter';
 import type { AnalysisDraft, SavedAnalysis } from './historyTypes';
 
 export const PAGE_SIZE = 20;
@@ -14,8 +16,14 @@ async function parse<T>(res: Response): Promise<T> {
   return body as T;
 }
 
-export const listAnalyses = (offset: number) =>
-  authedFetch(`/analyses?limit=${PAGE_SIZE}&offset=${offset}`).then((r) => parse<SavedAnalysis[]>(r));
+export const listAnalyses = (offset: number, filter: HistoryFilter) => {
+  const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(offset) });
+  if (filter.source !== 'all') params.set('source', filter.source);
+  const since = sinceOf(filter.range);
+  // toISOString() is in UTC ("Z"), so the "+" of a zone offset never has to be encoded.
+  if (since) params.set('since', since.toISOString());
+  return authedFetch(`/analyses?${params}`).then((r) => parse<SavedAnalysis[]>(r));
+};
 
 export const saveAnalysis = (draft: AnalysisDraft) =>
   authedFetch('/analyses', { method: 'POST', body: JSON.stringify(draft) }).then((r) =>

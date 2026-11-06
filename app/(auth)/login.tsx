@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -17,6 +17,7 @@ import { useAuth } from '@/src/features/auth';
 import { authColors, authStyles as s } from '@/src/features/auth/authStyles';
 
 export default function Login() {
+  const router = useRouter();
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -71,6 +72,13 @@ export default function Login() {
             autoComplete="current-password"
             onSubmitEditing={submit}
           />
+
+          <TouchableOpacity
+            style={{ alignSelf: 'flex-end', marginTop: -8, marginBottom: 14 }}
+            onPress={() => router.push({ pathname: '/forgot-password', params: { email: email.trim() } })}
+            accessibilityRole="button">
+            <Text style={s.footerLink}>Forgot password?</Text>
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}

@@ -6,13 +6,14 @@ import {
   AudioModule,
 } from 'expo-audio';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Platform } from 'react-native';
 import { aiTranscribe } from '@/src/features/ai';
+import { useAlert } from '@/src/shared/ui/AlertProvider';
 
 export function useAudioProcessor(
   onTranscriptionSuccess?: (text: string) => void,
   onTranscriptionError?: (err: string) => void,
 ) {
+  const alert = useAlert();
   const [status, setStatus] = useState('Speak English or German');
   const [isRecording, setIsRecording] = useState(false);
   const [heard, setHeard] = useState('');
@@ -64,7 +65,10 @@ export function useAudioProcessor(
       }, 10000);
     } catch (err) {
       console.error('Start recording failed:', err);
-      Alert.alert('Error', 'Microphone access needed');
+      alert.error(
+        'Microphone needed',
+        'Allow microphone access in your phone settings to record your voice.',
+      );
       setStatus('Speak English or German');
       setIsRecording(false);
       onTranscriptionError?.('Microphone access denied');
@@ -103,7 +107,9 @@ export function useAudioProcessor(
   async function processSpeechOnBackend(uri: string) {
     try {
       // German only: the game is played in German, and pinning the language improves accuracy.
-      const text = await aiTranscribe(Platform.OS === 'ios' ? uri.replace('file://', '') : uri, 'de');
+      // The recording's address is passed on exactly as given. On iOS it must keep its file:// start, or the
+      // upload fails before it leaves the phone.
+      const text = await aiTranscribe(uri, 'de');
       if (!text) throw new Error('No speech was detected. Try again.');
 
       setHeard(text);

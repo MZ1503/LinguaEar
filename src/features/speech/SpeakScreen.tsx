@@ -1,10 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { RecentHistory, useHistory } from '@/src/features/history';
 import { useScore } from '@/src/features/score';
 import { CompoundCard } from '@/src/shared/german/CompoundCard';
+import { GENDER_COLORS, GENDER_UNDERLINE, parseGender } from '@/src/shared/german/gender';
+import { GenderLegend, GenderText } from '@/src/shared/german/GenderText';
 import { QuizPlayer } from '@/src/shared/german/QuizPlayer';
 
 import type { Palette } from '@/src/shared/theme/brand';
@@ -14,13 +16,7 @@ import type { MicState } from '@/src/shared/ui/MicButton';
 import { Section } from '@/src/shared/ui/Section';
 
 import { useNormalAudioProcessor } from './useNormalAudioProcessor';
-
-// Gender colours; chips use them as low-alpha tints so they read on light and dark.
-const ARTICLE_COLORS: Record<string, string> = {
-  der: '#3B82F6',
-  die: '#EC4899',
-  das: '#10B981',
-};
+import { useAlert } from '@/src/shared/ui/AlertProvider';
 
 export function SpeakScreen() {
   const { colors } = useTheme();
@@ -41,6 +37,7 @@ export function SpeakScreen() {
   const { explanation, tone, grammar, quiz, quizQuestions, articles, compounds } = analysis;
 
   const history = useHistory();
+  const alert = useAlert();
   const { reportQuiz } = useScore();
   const [reward, setReward] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
@@ -70,7 +67,7 @@ export function SpeakScreen() {
       setSavedId(item.id);
       setSavedFor(heard);
     } catch (err) {
-      Alert.alert('Could not save', err instanceof Error ? err.message : 'Please try again.');
+      alert.error('Could not save', err instanceof Error ? err.message : 'Please try again.');
     } finally {
       setSaving(false);
     }
@@ -96,7 +93,10 @@ export function SpeakScreen() {
             tint="#10B981"
             action={{ label: 'New recording', onPress: resetApp }}
           >
-            <Text style={styles.quote}>“{heard}”</Text>
+            <GenderText style={styles.quote} nouns={articles}>
+              {`“${heard}”`}
+            </GenderText>
+            {articles.length > 0 && <GenderLegend />}
           </Section>
 
           {!!explanation && (
@@ -113,13 +113,26 @@ export function SpeakScreen() {
                   <Text style={styles.articlesTitle}>Nouns and articles</Text>
                   <View style={styles.chips}>
                     {articles.map((a, i) => {
-                      const color = ARTICLE_COLORS[a.gender?.toLowerCase()] ?? colors.muted;
+                      const gender = parseGender(a.gender);
+                      const color = gender ? GENDER_COLORS[gender] : colors.muted;
                       return (
                         <View
                           key={i}
                           style={[styles.chip, { backgroundColor: `${color}1f`, borderColor: `${color}55` }]}
                         >
-                          <Text style={[styles.chipArticle, { color }]}>{a.gender}</Text>
+                          <Text
+                            style={[
+                              styles.chipArticle,
+                              { color },
+                              gender && {
+                                textDecorationLine: 'underline',
+                                textDecorationStyle: GENDER_UNDERLINE[gender],
+                                textDecorationColor: color,
+                              },
+                            ]}
+                          >
+                            {a.gender}
+                          </Text>
                           <Text style={styles.chipWord}>{a.word}</Text>
                         </View>
                       );
