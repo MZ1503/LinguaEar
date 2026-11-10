@@ -90,25 +90,25 @@ const styles = StyleSheet.create({
   },
   waveCircle: {
     position: 'absolute',
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
     borderWidth: 2,
     borderColor: '#00d2ff', // Matching blue ear accent color
   },
   secondWave: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
+    width: 190,
+    height: 190,
+    borderRadius: 95,
   },
   logoContainer: {
-    width: 100,
-    height: 100,
+    width: 120,
+    height: 120,
     alignItems: 'center',
     justifyContent: 'center',
   },
   logo: {
-    width: 80,
-    height: 80,
+    width: 96,
+    height: 96,
   },
 });

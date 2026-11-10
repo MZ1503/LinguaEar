@@ -7,19 +7,28 @@
     "icon": "./assets/images/icon.png",
     "scheme": "linguaear",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.linguaear.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#050510",
         "foregroundImage": "./assets/images/icon.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "versionCode": 6,
-      "package": "com.linguaear.app"
+      "package": "com.linguaear.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ]
     },
     "web": {
       "output": "static",
@@ -28,10 +37,16 @@
     "plugins": [
       "expo-router",
       [
+        "expo-camera",
+        {
+          "cameraPermission": "LinguaEar uses the camera to read German and English text and translate it for you."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/images/ear-logo.png",
-          "imageWidth": 120,
+          "imageWidth": 96,
           "resizeMode": "contain",
           "backgroundColor": "#0b0f19",
           "dark": {
@@ -43,22 +58,26 @@
       "expo-web-browser",
       "expo-image",
       "expo-status-bar",
-       [
-    "expo-audio",
-    {
-      "microphonePermission": "Allow LinguaEar to use your microphone for German pronunciation practice."
-    }
-       ]
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow LinguaEar to use your microphone for German pronunciation practice."
+        }
+      ],
+      "expo-asset"
     ],
-
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
     },
     "extra": {
-      "router": {},
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
       "eas": {
-        "projectId": "350e8d56-46a6-4999-b8bf-7a3fe957e649"
+        "projectId": "89e28438-3591-42d8-9e63-badeaf2277f7"
       }
     },
     "runtimeVersion": {
@@ -66,6 +85,7 @@
     },
     "updates": {
       "url": "https://u.expo.dev/350e8d56-46a6-4999-b8bf-7a3fe957e649"
-    }
+    },
+    "owner": "fakeananda"
   }
 }

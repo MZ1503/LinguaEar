@@ -1,58 +1,49 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Ionicons } from '@expo/vector-icons';
+import type { ColorValue } from 'react-native';
 
-import { HapticTab } from '@/components/haptic-tab';
-import { Colors } from '@/src/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useLoginNotice } from '@/src/features/billing';
+import { ProfileButton } from '@/src/features/profile';
+import { ScoreChip, useScoreSync } from '@/src/features/score';
+import { AppHeader } from '@/src/shared/ui/AppHeader';
+import { FloatingTabBar } from '@/src/shared/ui/FloatingTabBar';
+import { ThemeToggle } from '@/src/shared/ui/ThemeToggle';
+
+type IconName = keyof typeof Ionicons.glyphMap;
+
+type IconProps = { color: ColorValue; focused: boolean };
+
+const tabIcon = (active: IconName, inactive: IconName) => {
+  const TabIcon = ({ color, focused }: IconProps) => (
+    <Ionicons name={focused ? active : inactive} size={24} color={color as string} />
+  );
+  return TabIcon;
+};
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  useScoreSync();
+  useLoginNotice();
 
   return (
     <Tabs
+      tabBar={(props) => <FloatingTabBar {...props} />}
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
-      
-      {/* 1. Home Screen Tab */}
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Speak',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'ear' : 'ear-outline'} size={26} color={color} />
+        header: () => (
+          <AppHeader
+            right={
+              <>
+                <ScoreChip />
+                <ThemeToggle />
+                <ProfileButton />
+              </>
+            }
+          />
         ),
-        }}
-      />
-      
-     
-      {/* 2. Game Screen */}
-      <Tabs.Screen
-        name="GameMode"
-        options={{
-          title: 'Game Mode',
-          tabBarIcon: ({ color, focused }) => (
-           
-            <Ionicons name={focused ? 'dice' : 'dice-outline'} size={26} color={color} />
-          ),
-        }}
-      />
-
-      {/* 3. Privacy Screen*/}
-      <Tabs.Screen
-        name="privacy"
-        options={{
-          title: 'Privacy',
-          tabBarIcon: ({ color, focused }) => (
-            
-            <Ionicons name={focused ? 'shield-checkmark' : 'shield-checkmark-outline'} size={26} color={color} />
-          ),
-        }}
-      />
-
+      }}>
+      <Tabs.Screen name="index" options={{ title: 'Speak', tabBarIcon: tabIcon('ear', 'ear-outline') }} />
+      <Tabs.Screen name="scan" options={{ title: 'Scan', tabBarIcon: tabIcon('camera', 'camera-outline') }} />
+      <Tabs.Screen name="GameMode" options={{ title: 'Game', tabBarIcon: tabIcon('dice', 'dice-outline') }} />
     </Tabs>
   );
 }
