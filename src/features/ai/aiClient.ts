@@ -20,6 +20,65 @@ const RETRIES = 2;
 const AI_TIMEOUT_MS = 60_000;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const GROQ_KEY = process.env.EXPO_PUBLIC_GROQ_API_KEY;
+const GROQ_MODEL = process.env.EXPO_PUBLIC_GROQ_MODEL || 'llama-3.1-8b-instant';
+const GROQ_BASE = 'https://api.groq.com/openai/v1';
+
+async function groqChatFallback(
+  messages: ChatMessage[],
+  options: { json?: boolean; temperature?: number } = {},
+): Promise<string> {
+  if (!GROQ_KEY) throw new AiError('No Groq API key available for fallback.', 'other', 0);
+  const body: Record<string, unknown> = {
+    model: GROQ_MODEL,
+    messages,
+    temperature: options.temperature ?? 0.3,
+  };
+  if (options.json) body.response_format = { type: 'json_object' };
+
+  const res = await fetch(`${GROQ_BASE}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${GROQ_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => null);
+    const msg = typeof errBody?.error?.message === 'string' ? errBody.error.message : 'Groq chat failed.';
+    throw new AiError(msg, 'upstream', res.status);
+  }
+  const data = await res.json();
+  const content = data?.choices?.[0]?.message?.content;
+  if (typeof content !== 'string' || !content)
+    throw new AiError('Groq returned an empty answer.', 'upstream', 200);
+  return content;
+}
+
+async function groqTranscribeFallback(uri: string, language?: 'de' | 'en'): Promise<string> {
+  if (!GROQ_KEY) throw new AiError('No Groq API key available for fallback.', 'other', 0);
+  const form = new FormData();
+  form.append('file', { uri, name: 'recording.m4a', type: 'audio/m4a' } as unknown as Blob);
+  form.append('model', 'whisper-large-v3-turbo');
+  if (language) form.append('language', language);
+
+  const res = await fetch(`${GROQ_BASE}/audio/transcriptions`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${GROQ_KEY}`,
+    },
+    body: form,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    const msg = typeof body?.error?.message === 'string' ? body.error.message : 'Groq transcription failed.';
+    throw new AiError(msg, 'upstream', res.status);
+  }
+  const data = await res.json();
+  return typeof data?.text === 'string' ? data.text : '';
+}
+
 async function toError(res: Response): Promise<AiError> {
   const body = await res.json().catch(() => null);
   const detail = body?.detail;
@@ -58,15 +117,23 @@ export async function aiChat(
   messages: ChatMessage[],
   options: { json?: boolean; temperature?: number } = {},
 ): Promise<string> {
-  const res = await send(`/ai/chat/${kind}`, {
-    method: 'POST',
-    body: JSON.stringify({ messages, json_mode: !!options.json, temperature: options.temperature ?? 0.3 }),
-  });
-  const data = await res.json();
-  const content = data?.choices?.[0]?.message?.content;
-  if (typeof content !== 'string' || !content)
-    throw new AiError('The AI returned an empty answer.', 'upstream', 200);
-  return content;
+  try {
+    const res = await send(`/ai/chat/${kind}`, {
+      method: 'POST',
+      body: JSON.stringify({ messages, json_mode: !!options.json, temperature: options.temperature ?? 0.3 }),
+    });
+    const data = await res.json();
+    const content = data?.choices?.[0]?.message?.content;
+    if (typeof content !== 'string' || !content)
+      throw new AiError('The AI returned an empty answer.', 'upstream', 200);
+    return content;
+  } catch (err) {
+    if (GROQ_KEY) {
+      console.warn('Backend aiChat failed, falling back to Groq directly:', err);
+      return groqChatFallback(messages, options);
+    }
+    throw err;
+  }
 }
 
 /** Turns a recording into text. `language` pins Whisper to German or English; leave it out to auto-detect. */
@@ -78,14 +145,17 @@ export async function aiTranscribe(uri: string, language?: 'de' | 'en'): Promise
   form.append('file', new File(uri) as unknown as Blob);
   if (language) form.append('language', language);
 
-  let res: Response;
   try {
-    res = await send('/ai/transcribe', { method: 'POST', body: form });
+    const res = await send('/ai/transcribe', { method: 'POST', body: form });
+    const data = await res.json();
+    return typeof data?.text === 'string' ? data.text : '';
   } catch (err) {
     // The Metro terminal then shows which file was being sent, which is what a failed upload hinges on.
     console.warn('Recording upload failed. File:', uri, '| error:', err);
+    if (GROQ_KEY) {
+      console.warn('Backend transcribe failed, falling back to Groq Whisper directly.');
+      return groqTranscribeFallback(uri, language);
+    }
     throw err;
   }
-  const data = await res.json();
-  return typeof data?.text === 'string' ? data.text : '';
 }

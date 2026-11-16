@@ -15,6 +15,7 @@ import { MicButton } from '@/src/shared/ui/MicButton';
 import type { MicState } from '@/src/shared/ui/MicButton';
 import { Section } from '@/src/shared/ui/Section';
 
+import { OfflinePackSection } from '@/src/features/offline/OfflinePackSection';
 import { useNormalAudioProcessor } from './useNormalAudioProcessor';
 import { useAlert } from '@/src/shared/ui/AlertProvider';
 
@@ -209,6 +210,7 @@ export function SpeakScreen() {
         </View>
       )}
 
+      <OfflinePackSection />
       <RecentHistory />
     </ScrollView>
   );
